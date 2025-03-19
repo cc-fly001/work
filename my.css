@@ -1,0 +1,256 @@
+.black-nav {
+    width: 100%;
+    height: 40px;
+    background-color: #333;
+    font-size: 12px;
+}
+
+.black-nav .wrap {
+    display: flex;
+    width: 1226px;
+    height: 40px;
+    justify-content: space-between;
+    margin: 0 auto;
+}
+
+.black-nav .wrap span {
+    color: #424242;
+    margin: 0 3.6px;
+}
+
+.black-nav .wrap .black-nav-left {
+    display: flex;
+    align-items: center;
+    justify-self: start;
+}
+
+.black-nav .wrap .black-nav-right {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+}
+
+.black-nav .wrap a {
+    text-decoration: none;
+    color: #b0b0b0;
+}
+
+.black-nav li {
+    margin: 0 2px;
+}
+
+
+.black-nav .cart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    width: 120px;
+    background-color: #424242;
+}
+
+.black-nav a:hover {
+    color: #fff;
+}
+
+.white-nav .wrap {
+    display: flex;
+    width: 1226px;
+    height: 100px;
+    justify-content: space-between;
+    margin: 0 auto;
+}
+
+.white-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 auto;
+    width: 1226px;
+    height: 100px;
+}
+
+.white-nav .logo {
+    height: 70px;
+    width: 70px;
+}
+
+.white-nav .logo img {
+    display: flex;
+margin-top: 15px;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+}
+
+.white-nav ul {
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 700px;
+    height: 100px;
+}
+
+.white-nav .search {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+    width: 296px;
+    height: 100px;
+}
+
+.search input {
+    width: 244px;
+    height: 50px;
+    float: left;
+    border: 1px solid #e0e0e0;
+    padding: 0 10px;
+}
+
+.search button {
+    width: 52px;
+    height: 50px;
+    float: right;
+    border: 1px solid #e0e0e0;
+    background-color: #fff;
+}
+
+.white-nav .nav-bar a:hover{
+    color: #ff6700;
+}
+
+
+.banner {
+    display: flex;
+    width: 100%;
+    height: 460px;
+    justify-content: center;
+}
+
+.banner-img {
+    width: 1226px;
+    height: 460px;
+    background-size: contain;
+}
+
+.banner>.wrap {
+    position: relative;
+}
+.slide {
+    width: 234px;
+    height: 460px;
+    padding: 20px 0;
+    background-color: rgba(105, 101, 101, 0.6);
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.banner ul {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.banner li {
+    display: flex;
+    width: 234px;
+    height: 42px;
+}
+
+.banner li a {
+    display: flex;
+    align-items: center;
+    justify-content:space-between;
+    margin: 0 25px;
+   height: 42px;
+   width: 234px;
+    text-decoration: none;
+    color: #fff;
+    font-size: 14px;
+}
+
+.banner li:hover {
+    background-color: #ff6700;
+}
+
+
+.buttom {
+    width: 100%;
+    height: 170px;
+    
+}
+
+.buttom .wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 14px auto;
+   
+    width: 1226px;
+    height: 170px;
+}
+
+
+.buttom .left {
+    display: flex;
+    width: 234px;
+    height: 170px;
+    flex-wrap: wrap;
+}
+
+.buttom .left ul {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    background-color: #5f5750;
+    justify-content: space-evenly;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.buttom .left ul li {
+    display: flex;
+    width: 70px;
+    height: 64px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.buttom .left ul li img {
+    margin: 0 auto;
+    height: 24px;
+    width: 24px;
+    background-size: cover;
+}
+
+.buttom .left ul li p {
+    color:  #cfcdcb;
+    font-size: 12px;
+}
+
+.buttom .left ul li p:hover {
+    color: #fff;
+}
+
+
+.buttom .right {
+    display: flex;
+    width: 978px;
+    height: 170px;
+}
+
+.buttom .right ul {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    height: 170px;
+}
+
+.buttom .right li img {
+    width: 100%;
+    height: 100%;
+}
