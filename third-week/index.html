@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="./index.css">
+  <link rel="stylesheet" href="./base.css">
+</head>
+
+<body>
+
+  <div class="body">
+    <div class="model">
+      <div class="model-title">模型库</div>
+      <div class="fun">
+        <button class="addTier">增加层级</button>
+        <button class="upload" id="upload-btn">+上传</button>
+      </div>
+      <ul>
+        <li draggable="true" class="draggable"
+          data-model='{"id":1,"name":"模型 1:openai","description":"由0penAI开发，以强大的自然语言处理能力著称，支持多任务处理，广泛应用于对话、创作和代码生成，代表作为GPT系列模型。","url":"https://chat.openai.com/"}'>
+          <span class="model-name">模型 1:openai</span>
+        </li>
+        <li draggable="true" class="draggable"
+          data-model='{"id":2,"name":"模型 2:deepseek","description":"深度求索公司推出的开源大模型，专注高效推理与长文本处理，支持128K上下文，适合代码、数学及复杂逻辑任务。","url":"https://chat.deepseek.com/"}'>
+          <span class="model-name">模型 2:deepseek</span>
+        </li>
+        <li draggable="true" class="draggable"
+          data-model='{"id":3,"name":"模型 3:腾讯元宝","description":"腾讯推出的企业级大模型，强调安全与落地应用，支持多模态交互，适用于金融、医疗等行业场景优化。","url":"https://yuanbao.tencent.com/"}'>
+          <span class="model-name">模型 3:腾讯元宝</span>
+        </li>
+      </ul>
+    </div>
+    <!-- 弹框 -->
+    <div id="model-popup" class="popup hidden">
+      <div class="popup-content">
+        <span class="close-btn" id="popup-close-btn">&times;</span>
+        <h2 id="popup-title">模型详情</h2>
+        <p id="popup-description"></p>
+        <p id="popup-url"></p>
+      </div>
+    </div>
+    <div class="choose">
+      <ul id="tier-list">
+
+      </ul>
+      </li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="popup" class="popup hidden">
+    <div class="popup-content">
+      <span class="close-btn" id="close-btn">&times;</span>
+      <h2>提交内容</h2>
+      <form id="upload-form">
+        <label for="query">询问内容：</label>
+        <textarea id="query" name="query" rows="4" placeholder="请输入您的问题"></textarea>
+
+        <label for="file">上传图片：</label>
+        <input type="file" id="file" name="file">
+
+        <button type="button" id="submit-btn">提交</button>
+      </form>
+    </div>
+  </div>
+
+
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+
+  <script>
+    // 添加拖拽事件
+    const draggables = document.querySelectorAll(".draggable");
+    const tierItems = document.querySelectorAll("#tier-list > li");
+
+    // 为每个模型项添加 dragstart 事件
+    draggables.forEach((draggable) => {
+      draggable.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("application/json", draggable.dataset.model);
+        e.target.style.opacity = "0.5"; // 拖拽时降低透明度
+      });
+
+      draggable.addEventListener("dragend", (e) => {
+        e.target.style.opacity = "1"; // 恢复透明度
+      });
+    });
+
+    // 为每个层级项添加 dragover 和 drop 事件
+    tierItems.forEach((tierItem) => {
+      tierItem.addEventListener("dragover", (e) => {
+        e.preventDefault(); // 允许拖拽目标接收数据
+      });
+
+      tierItem.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const modelData = JSON.parse(e.dataTransfer.getData("application/json"));
+
+        // 获取当前层级的子模型列表
+        const modelList = tierItem.querySelector(".model-list");
+
+        // 检查是否已经存在相同 ID 的模型
+        const existingModel = modelList.querySelector(`[data-id="${modelData.id}"]`);
+        if (existingModel) {
+          alert(`模型 "${modelData.name}" 已经存在于该层级中！`);
+          return; // 如果已存在，则不添加
+        }
+
+        // 创建新的模型项
+        const newModel = document.createElement("li");
+        newModel.classList.add('tier')
+        newModel.style.width = '280px'
+        newModel.style.margin = '5px 0'
+        newModel.textContent = modelData.name;
+        newModel.setAttribute("data-id", modelData.id);
+
+        // 添加到子模型列表
+        modelList.appendChild(newModel);
+
+        console.log(`模型 "${modelData.name}" 已添加到 ${tierItem.querySelector(".tier").textContent}`);
+      });
+    });
+
+  </script>
+
+  <script>
+    //增加层级
+    const addTier = document.querySelector('.addTier')
+    const modelList = document.querySelectorAll('#tier-list>li')
+    const tierList = document.querySelector('#tier-list')
+    addTier.addEventListener('click', () => {
+      const newTier = document.createElement('li')
+      const tierCount = tierList.children.length + 1
+      newTier.innerHTML = (`<div class="tier">层级 ${tierCount}</div>
+          <ul class="model-list"></ul>`)
+      tierList.appendChild(newTier)
+      // 为新添加的层级绑定事件
+      newTier.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+
+      newTier.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const modelData = JSON.parse(e.dataTransfer.getData("application/json"));
+        const modelList = newTier.querySelector(".model-list");
+
+        // 检查是否已经存在相同 ID 的模型
+        const existingModel = modelList.querySelector(`[data-id="${modelData.id}"]`);
+        if (existingModel) {
+          alert(`模型 "${modelData.name}" 已经存在于该层级中！`);
+          return;
+        }
+
+        // 创建新的模型项
+        const newModel = document.createElement("li");
+        newModel.textContent = modelData.name;
+        newModel.classList.add('tier')
+        newModel.setAttribute("data-name", modelData.name);
+        newModel.setAttribute("data-url", modelData.url);
+        newModel.setAttribute("data-weight", modelData.weight);
+        newModel.style.width = '280px'
+        newModel.style.margin = '5px 0'
+        newModel.setAttribute("data-id", modelData.id);
+        modelList.appendChild(newModel);
+      })
+    })
+
+
+
+    //model弹出框
+    const modelItems = document.querySelectorAll(".model ul li");
+    const modelpopup = document.getElementById("model-popup");
+    const popupTitle = document.getElementById("popup-title");
+    const popupDescription = document.getElementById("popup-description");
+    const popupUrl = document.getElementById("popup-url");
+    const popupCloseBtn = document.getElementById("popup-close-btn");
+
+    // 为每个模型项添加点击事件
+    modelItems.forEach((modelItem) => {
+      modelItem.addEventListener("click", () => {
+        // 获取模型数据
+        const modelData = JSON.parse(modelItem.dataset.model);
+
+        // 设置弹框内容
+        popupTitle.textContent = modelData.name;
+        popupDescription.textContent = `简介：${modelData.description}`;
+        popupUrl.textContent = `URL：${modelData.url}`;
+
+        // 显示弹框
+        modelpopup.classList.remove("hidden");
+      });
+    });
+
+    // 点击关闭按钮隐藏弹框
+    popupCloseBtn.addEventListener("click", () => {
+      modelpopup.classList.add("hidden");
+    });
+  </script>
+
+
+  <script>
+    // 获取按钮和弹出框
+    const uploadBtn = document.getElementById("upload-btn");
+    const popup = document.getElementById("popup");
+    const closeBtn = document.getElementById("close-btn");
+    const submitBtn = document.getElementById("submit-btn");
+
+    // 点击上传按钮显示弹出框
+    uploadBtn.addEventListener("click", () => {
+      popup.classList.remove("hidden");
+    });
+
+    // 点击关闭按钮隐藏弹出框
+    closeBtn.addEventListener("click", () => {
+      popup.classList.add("hidden");
+    });
+
+    // 提交表单数据
+    submitBtn.addEventListener("click", async () => {
+      event.preventDefault();
+      const query = document.getElementById("query").value;
+      const fileInput = document.getElementById("file");
+      const file = fileInput.files[0];
+
+      // 动态获取层级信息
+      const tierList = document.querySelectorAll("#tier-list > li");
+      const modelList = Array.from(tierList).map((tier, index) => {
+        const models = Array.from(tier.querySelectorAll(".model-list > li")).map((model) => ({
+          modelName: model.getAttribute("data-name"),
+          modelurl: model.getAttribute("data-url"),
+          weight: parseInt(model.getAttribute("data-weight")) || 1, // 默认权重为 1
+        }));
+
+        const parallel = models.length > 1 ? 2 : 1;
+
+        return {
+          layer: index + 1, // 层级编号
+          parallel: parallel, // 是否并行（根据需求动态设置）
+          models: models,
+        };
+      });
+
+      // 将图片转化为 Base64 格式
+      let base64Image = null;
+      if (file) {
+        base64Image = await imgToBase64(file);
+      }
+
+      // 构造请求体
+      const requestBody = {
+        content: query,
+        image: base64Image, // 图片的 Base64 数据
+        modelList: modelList,
+      };
+
+
+      // 发送数据到后端
+      axios.post("http://localhost:3000/api", requestBody, {
+        headers: {
+          "Content-Type": "application/json", // 确保请求头为 JSON 格式
+        },
+      })
+        .then((response) => {
+          console.log("服务器返回的数据:", response.data);
+          alert("提交成功！");
+          // 隐藏弹窗
+          const formContainer = document.querySelector("#popup");
+          formContainer.classList.add('hidden'); // 隐藏弹窗
+
+          // 清空表单内容
+          document.getElementById("query").value = ""; // 清空文本框
+          document.getElementById("file").value = "";
+        }).catch((error) => {
+          console.error("请求失败:", error);
+          alert("提交失败，请重试！");
+        });
+    });
+    // 将文件转化为 Base64 格式
+    function imgToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+  </script>
+
+  <script>
+
+    function submitToserver(data) {
+      // const data = [
+      //     { id: 1, name: "Alice", age: 25 },
+      //     { id: 2, name: "Bob", age: 30 },
+      //     { id: 3, name: "Charlie", age: 22 }
+      //   ];
+
+      axios.post("http://localhost:3000/api", data)
+        .then((response) => {
+          console.log("服务器返回的数据:", response.data);
+        })
+        .catch((error) => {
+          console.error("请求失败:", error);
+        });
+    }
+
+  </script>
+</body>
+
+</html>
