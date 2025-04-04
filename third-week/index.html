@@ -91,41 +91,6 @@
       });
     });
 
-    // 为每个层级项添加 dragover 和 drop 事件
-    tierItems.forEach((tierItem) => {
-      tierItem.addEventListener("dragover", (e) => {
-        e.preventDefault();
-      });
-
-      tierItem.addEventListener("drop", (e) => {
-        e.preventDefault();
-        const modelData = JSON.parse(e.dataTransfer.getData("application/json"));
-
-        // 获取当前层级的子模型列表
-        const modelList = tierItem.querySelector(".model-list");
-
-        // 检查是否已经存在相同 ID 的模型
-        const existingModel = modelList.querySelector(`[data-id="${modelData.id}"]`);
-        if (existingModel) {
-          alert(`模型 "${modelData.name}" 已经存在于该层级中！`);
-          return;
-        }
-
-        // 创建新的模型项
-        const newModel = document.createElement("li");
-        newModel.classList.add('tier')
-        newModel.style.width = '280px'
-        newModel.style.margin = '5px 0'
-        newModel.textContent = modelData.name;
-        newModel.setAttribute("data-id", modelData.id);
-
-        // 添加到子模型列表
-        modelList.appendChild(newModel);
-
-        console.log(`模型 "${modelData.name}" 已添加到 ${tierItem.querySelector(".tier").textContent}`);
-      });
-    });
-
   </script>
 
   <script>
