@@ -252,27 +252,6 @@
       };
 
 
-      // 发送数据到后端
-      //   axios.post("http://localhost:3000/api", requestBody, {
-      //     headers: {
-      //       "Content-Type": "application/json", // 确保请求头为 JSON 格式
-      //     },
-      //   })
-      //     .then((response) => {
-      //       console.log("服务器返回的数据:", response.data);
-      //       alert("提交成功！");
-
-      //       const formContainer = document.querySelector("#popup");
-      //       formContainer.classList.add('hidden');
-
-      //       document.getElementById("query").value = "";
-      //       document.getElementById("file").value = "";
-      //     }).catch((error) => {
-      //       console.error("请求失败:", error);
-      //       alert("提交失败，请重试！");
-      //     });
-      // });
-
 
       fetch("http://localhost:3000/api", {
         method: "POST",
