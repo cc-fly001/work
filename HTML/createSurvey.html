@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>创建问卷</title>
+  <link rel="stylesheet" href="../CSS/createSurvey1.css">
+  <link rel="stylesheet" href="../CSS/createSurvey2.css">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+
+<body>
+  <!-- 页面过渡效果 -->
+  <div class="loading">
+    <svg viewBox="0 0 50 50">
+      <circle r="25" cx="25" cy="25" />
+    </svg>
+    <p>创建问卷...</p>
+  </div>
+
+  <!-- 返回按钮 -->
+  <div class="back">&lt;</div>
+
+  <div class="wrapper">
+    <div class="toolsArea">
+      <ul id="tool-list">
+        <li>
+          <h2>组件区</h2>
+        </li>
+        <li class="tool-item" data-type="introduction" draggable="true">引言</li>
+        <li class="tool-item" data-type="single-choice" draggable="true">单选题</li>
+        <li class="tool-item" data-type="multiple-choice" draggable="true">多选题</li>
+        <li class="tool-item" data-type="text" draggable="true">简答题</li>
+        <li class="tool-item" data-type="rating" draggable="true">评分</li>
+        <li class="tool-item" data-type="date" draggable="true">日期选择</li>
+        <li class="tool-item" data-type="submit-button" draggable="true">提交按钮</li>
+      </ul>
+    </div>
+    <div class="desk">
+      <div class="enchantArea">
+        <div class="parameterArea">
+          <h2>附魔台</h2>
+          <p>点击组件或将组件拖拽<br>到此处进行组件的自定义</p>
+          <div><label>高(px):</label><input type="text" placeholder="默认自动"></div>
+          <div><label>宽(px):</label><input type="text" placeholder="默认自动"></div>
+          <div><label>圆角(px):</label><input type="text" placeholder="默认5px"></div>
+        </div>
+        <div class="operationArea"></div>
+      </div>
+
+      <div class="surveyArea">
+        <div>
+          <h2>问卷设计区</h2>
+          <p>将自定义好的组件拖拽<br>到这里开始设计问卷</p>
+        </div>
+        <div class="surveyContent">
+          <div class="title"><span>问卷标题</span>
+            <input type="text" placeholder="请输入问卷标题" id="surveyTitle" />
+          </div>
+          <ul id="sortable-list" class="sortable-list">
+            <!-- 组件将作为 <li> 动态添加到这里 -->
+          </ul>
+          <div class="surveyOperationArea">
+            <div class="fixed-buttons">
+              <button id="previewButton">预览</button>
+              <button id="saveButton">保存</button>
+              <button id="deleteButton">删除问卷</button>
+              <button id="exportImageButton">导出图片</button>
+              <button id="shareButton">生成分享链接</button>
+              <button id="pushSurveyBtn" style="display:none;">推送问卷</button>
+              <button id="recycleBin">回收站</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="recycleBin">
+      <span id="back">&lt;</span>
+      <h1 style="text-align: center;padding-top: 30px;cursor: pointer;">回收站</h1>
+      <div class="recycleBinList"></div>
+    </div>
+
+    <!-- 过渡动画 -->
+    <script>
+      //过渡动画对象
+      const loading = {
+        container: document.querySelector('.loading'),
+        in() {
+          this.container.classList.remove('loading-out');
+          setTimeout(() => {
+            window.location.href = 'app.html';
+          }, 1000);
+        },
+        out() {
+          this.container.classList.add('loading-out');
+        }
+      }
+      window.addEventListener("DOMContentLoaded", () => {
+        setTimeout(() => {
+          loading.out();
+        }, 500);
+      })
+
+
+      // 保存问卷内容到 localStorage
+      function saveToLocalStorage() {
+        console.log('saveToLocalStorage called');
+        const surveyTitle = document.getElementById('surveyTitle').value.trim();
+        const surveyItems = [...sortableList.children].map((item) => {
+          const clonedItem = item.cloneNode(true); // 克隆节点
+          const deleteButton = clonedItem.querySelector('.delete-button');
+          if (deleteButton) {
+            deleteButton.remove(); // 移除删除按钮
+          }
+
+          // 提取组件样式
+          const styles = {
+            width: item.style.width || 'auto',
+            height: item.style.height || 'auto',
+            borderRadius: item.style.borderRadius || '5px',
+          };
+
+
+          // 提取组件内容
+          let content = '';
+          if (item.getAttribute('data-type') === 'introduction') {
+            content = item.querySelector('p')?.innerText || '';
+          } else if (item.getAttribute('data-type') === 'single-choice' || item.getAttribute('data-type') === 'multiple-choice') {
+            const question = item.querySelector('h3')?.innerText || '';
+            const options = [...item.querySelectorAll('.option')].map(optionDiv => {
+              const inputType = optionDiv.querySelector('input[type="radio"], input[type="checkbox"]')?.type || '';
+              const optionInput = optionDiv.querySelector('.option-input');
+              const optionText = optionInput?.value.trim() || '';
+              // console.log('保存选项:', optionText);
+              return {
+                type: inputType,
+                text: optionText,
+              };
+            }
+            );
+            content = { question, options };
+            // console.log('当前组件类型:', item.getAttribute('data-type'));
+            // console.log('选项数量:', item.querySelectorAll('.option').length);
+            // item.querySelectorAll('.option').forEach((opt, idx) => {
+            //   console.log(`选项${idx}内容:`, opt.innerHTML);
+            // });
+
+
+          } else if (item.getAttribute('data-type') === 'text') {
+            content = item.querySelector('h3')?.innerText || '';
+          } else if (item.getAttribute('data-type') === 'rating') {
+            content = item.querySelector('h3')?.innerText || '';
+          } else if (item.getAttribute('data-type') === 'date') {
+            content = item.querySelector('h3')?.innerText || '';
+          }
+
+          return {
+            html: clonedItem.outerHTML, // 保存组件的 HTML
+            styles, // 保存组件的样式
+            type: item.getAttribute('data-type'), // 保存组件类型
+            content, // 保存组件内容
+          };
+        });
+
+        const surveyData = {
+          title: surveyTitle,
+          content: surveyItems,
+        };
+
+        localStorage.setItem('savedSurvey', JSON.stringify(surveyData)); // 存储到 localStorage
+      }
+
+      // 返回按钮事件
+      const backButton = document.querySelector('.back');
+      backButton.addEventListener('click', () => {
+        if (!isSaved) {
+          const confirmLeave = confirm('您有未保存到库的问卷，确定要离开吗？（自动保存上一次的编辑记录）');
+          if (!confirmLeave) {
+            return; // 用户取消离开，停止执行后续逻辑
+          }
+        }
+        saveToLocalStorage();
+        document.querySelector('.loading p').innerText = '加载中...';
+        loading.in();
+      });
+
+    </script>
+
+    <script>
+
+
+
+      window.onload = async function () {
+        const token = localStorage.getItem('token'); // 从 localStorage 获取 token
+        const loginTime = parseInt(localStorage.getItem('loginTime'), 10); // 确保 loginTime 是数字类型
+        const currentTime = new Date().getTime();
+
+        // 检查 token 是否存在以及是否过期
+        if (!token || !loginTime || currentTime - loginTime > 24 * 60 * 60 * 1000) {
+          // 如果 token 不存在或已过期
+          localStorage.removeItem('token'); // 移除 token
+          localStorage.removeItem('loginTime'); // 移除登录时间
+          alert('登录已过期，请重新登录！');
+          window.location.href = 'index.html'; // 跳转到登录页面
+        }
+
+        if (!token) {
+          alert('未登录，请先登录！');
+          window.location.href = 'index.html';
+          return;
+        }
+
+        const recycleBinList = document.querySelector('.recycleBinList');
+
+        recycleBinList.addEventListener('click', (event) => {
+          if (event.target.classList.contains('restore-button')) {
+            const component = event.target.closest('.recycle-item, .survey-item, .enchant-item');
+            if (component) {
+              console.log('恢复按钮点击（事件委托）', component);
+              restoreComponent(component);
+            }
+          }
+        });
+
+
+        // 检测 surveyId 参数
+        const surveyId = getQueryParam('surveyId');
+        if (surveyId) {
+          localStorage.setItem('currentSurveyId', surveyId); // 保存当前问卷 ID
+
+          // 修改保存按钮文本为“修改”
+          const saveButton = document.getElementById('saveButton');
+          if (saveButton) {
+            saveButton.textContent = '修改';
+          }
+          const pushBtn = document.getElementById('pushSurveyBtn');
+          if (pushBtn) {
+            pushBtn.style.display = 'inline-block';
+          }
+        }
+      }
+
+      function getQueryParam(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+      }
+
+      // 获取工具区和附魔台
+      const toolList = document.getElementById('tool-list');
+      const enchantArea = document.querySelector('.operationArea');
+
+      let currentComponent = null; // 当前选中的组件
+      let draggedFromToolList = false; // 标记是否从工具区拖拽
+
+      // 为工具区的每个组件绑定拖拽事件
+      toolList.addEventListener('dragstart', (event) => {
+        if (event.target.classList.contains('tool-item')) {
+          draggedFromToolList = true; // 标记为从工具区拖拽
+          event.dataTransfer.setData('type', event.target.dataset.type); // 保存组件类型
+        }
+      });
+
+      //附魔台重置标记
+      enchantArea.addEventListener('dragstart', (event) => {
+        if (currentComponent) {
+          draggedFromToolList = false; // 重置标记，表示不是从工具区拖拽
+        }
+      });
+
+      // 允许附魔台接收拖拽
+      enchantArea.addEventListener('dragover', (event) => {
+        event.preventDefault(); // 阻止默认行为，允许拖拽
+      });
+
+      // 拖拽完成后，将组件添加到附魔台
+      enchantArea.addEventListener('drop', (event) => {
+        event.preventDefault();
+        draggedFromToolList = false; // 重置标记，表示组件已从附魔台拖拽
+        const type = event.dataTransfer.getData('type'); // 获取组件类型
+
+        // 如果附魔台已有组件，询问用户是否替换
+        if (currentComponent) {
+          const confirmReplace = confirm('附魔台已有组件，是否替换？');
+          if (!confirmReplace) {
+            return; // 用户取消替换
+          }
+          // 移除当前组件
+          enchantArea.removeChild(currentComponent);
+          currentComponent = null;
+        }
+
+        // 根据组件类型动态生成组件
+        let newElement = createComponent(type);
+        if (newElement) {
+          enchantArea.appendChild(newElement); // 添加到附魔台
+          currentComponent = newElement;
+        }
+      });
+
+      // 为工具区的每个组件绑定点击事件
+      toolList.addEventListener('click', (event) => {
+        if (event.target.classList.contains('tool-item')) {
+          const type = event.target.dataset.type; // 获取组件类型
+
+          // 如果附魔台已有组件，询问用户是否替换
+          if (currentComponent) {
+            const confirmReplace = confirm('附魔台已有组件，是否替换？');
+            if (!confirmReplace) {
+              return; // 用户取消替换
+            }
+            // 移除当前组件
+            enchantArea.removeChild(currentComponent);
+            currentComponent = null;
+          }
+
+          let newElement = createComponent(type);
+          if (newElement) {
+            enchantArea.appendChild(newElement); // 添加到附魔台
+            currentComponent = newElement; // 更新当前组件
+          }
+        }
+      });
+
+      // 根据组件类型动态生成组件
+      function createComponent(type) {
+        let newElement;
+        if (newElement) {
+          enchantArea.appendChild(newElement); // 添加到附魔台
+          currentComponent = newElement; // 更新当前组件
+        }
+        switch (type) {
+
+          // 引言组件
+          case 'introduction':
+            newElement = document.createElement('div');
+            newElement.classList.add('introduction-component');
+            newElement.innerHTML = `
+        <h3>引言</h3>
+        <p contenteditable="true" class="editable" draggable='true'>这是一个引言组件，点击此处编辑内容。</p>
+        <button class="edit-button">编辑</button>
+      `;
+
+            // 添加编辑功能
+            const editButton = newElement.querySelector('.edit-button');
+            const editableParagraph = newElement.querySelector('.editable');
+
+            editButton.addEventListener('click', () => {
+              if (editableParagraph.isContentEditable) {
+                editableParagraph.contentEditable = "false";
+                editButton.textContent = "编辑";
+              } else {
+                editableParagraph.contentEditable = "true";
+                editButton.textContent = "保存";
+              }
+            });
+
+            // 添加拖拽事件
+            newElement.addEventListener('dragover', (event) => {
+              event.preventDefault(); // 阻止默认行为，允许拖拽
+            });
+            newElement.addEventListener('dragstart', (event) => {
+              event.dataTransfer.setData('type', 'introduction'); // 设置拖拽类型
+              event.dataTransfer.setData('content', editableParagraph.innerText); // 保存引言内容
+            });
+            break;
+
+          //单选题
+          case 'single-choice':
+            newElement = document.createElement('div');
+            newElement.classList.add('single-choice-component');
+            newElement.setAttribute('draggable', 'true'); // 允许拖拽
+            newElement.innerHTML = `
+          <h3 contenteditable="true" class="question-title">请输入问题</h3>
+        <div class="options">
+          <div class="option">
+            <input type="radio" name="single-choice" disabled>
+            <input type="text" class="option-input" placeholder="请输入选项内容">
+          </div>
+        </div>
+        <button class="add-option-button">添加选项</button>
+      `;
+
+            // 添加选项功能
+            const addOptionButton = newElement.querySelector('.add-option-button');
+            const optionsContainer = newElement.querySelector('.options');
+
+            addOptionButton.addEventListener('click', () => {
+              const option = document.createElement('div');
+              option.classList.add('option');
+              option.innerHTML = `
+          <input type="radio" name="single-choice" disabled>
+          <input type="text" class="option-input" placeholder="请输入选项内容">
+        `;
+              optionsContainer.appendChild(option);
+            });
+
+            // 添加拖拽事件
+            newElement.addEventListener('dragstart', (event) => {
+              event.dataTransfer.setData('type', 'single-choice'); // 设置拖拽类型
+              const options = Array.from(newElement.querySelectorAll('.option-input')).map(input => input.value);
+              const question = newElement.querySelector('.question-title').innerText; // 获取问题内容
+              event.dataTransfer.setData('options', JSON.stringify(options)); // 保存选项内容
+              event.dataTransfer.setData('question', question); // 保存问题内容
+            });
+
+            break;
+
+          //多选题
+          case 'multiple-choice':
+            newElement = document.createElement('div');
+            newElement.classList.add('multiple-choice-component');
+            newElement.setAttribute('draggable', 'true'); // 允许拖拽
+            newElement.innerHTML = `
+    <h3 contenteditable="true" class="question-title">请输入问题</h3>
+    <div class="options">
+      <div class="option">
+        <input type="checkbox" disabled>
+        <input type="text" class="option-input" placeholder="请输入选项内容">
+      </div>
+    </div>
+    <button class="add-option-button">添加选项</button>
+  `;
+
+            // 添加选项功能 
+            const addOptionButton1 = newElement.querySelector('.add-option-button');
+            const optionsContainer1 = newElement.querySelector('.options');
+
+            addOptionButton1.addEventListener('click', () => {
+              const option = document.createElement('div');
+              option.classList.add('option');
+              option.innerHTML = `
+      <input type="checkbox" disabled>
+      <input type="text" class="option-input" placeholder="请输入选项内容">
+    `;
+              optionsContainer1.appendChild(option);
+            });
+
+            // 添加拖拽事件
+            newElement.addEventListener('dragstart', (event) => {
+              event.dataTransfer.setData('type', 'multiple-choice'); // 设置拖拽类型
+              const options = Array.from(newElement.querySelectorAll('.option-input')).map(input => input.value);
+              const question = newElement.querySelector('.question-title').innerText; // 获取问题内容
+              event.dataTransfer.setData('options', JSON.stringify(options)); // 保存选项内容
+              event.dataTransfer.setData('question', question); // 保存问题内容
+            });
+
+            break;
+
+          //简答题
+          case 'text':
+            newElement = document.createElement('div');
+            newElement.classList.add('text-component');
+            newElement.setAttribute('draggable', 'true'); // 允许拖拽
+            newElement.innerHTML = `
+    <h3 contenteditable="true" class="question-title">请输入问题</h3>
+    <textarea class="text-answer" placeholder="用户回答区域" disabled></textarea>
+  `;
+
+            // 添加拖拽事件
+            newElement.addEventListener('dragstart', (event) => {
+              event.dataTransfer.setData('type', 'text'); // 设置拖拽类型
+              const question = newElement.querySelector('.question-title').innerText; // 获取问题内容
+              event.dataTransfer.setData('question', question); // 保存问题内容
+            });
+
+            break;
+
+          //评分组件
+          case 'rating':
+            newElement = document.createElement('div');
+            newElement.classList.add('rating-component');
+            newElement.setAttribute('draggable', 'true'); // 允许拖拽
+            newElement.innerHTML = `
+    <h3 contenteditable="true" class="question-title">请输入评分问题</h3>
+    <input type="range" class="rating-slider" min="1" max="5" value="3">
+    <div class="rating-value">当前评分: 3</div>
+  `;
+
+            // 实时更新评分值
+            const slider = newElement.querySelector('.rating-slider');
+            const ratingValue = newElement.querySelector('.rating-value');
+            slider.addEventListener('input', () => {
+              ratingValue.textContent = `当前评分: ${slider.value}`;
+            });
+
+            // 添加拖拽事件
+            newElement.addEventListener('dragstart', (event) => {
+              event.dataTransfer.setData('type', 'rating'); // 设置拖拽类型
+              const question = newElement.querySelector('.question-title').innerText; // 获取问题内容
+              event.dataTransfer.setData('question', question); // 保存问题内容
+            });
+
+            break;
+
+          //日期选择组件
+          case 'date':
+            newElement = document.createElement('div');
+            newElement.classList.add('date-component');
+            newElement.setAttribute('draggable', 'true'); // 允许拖拽
+            newElement.innerHTML = `
+    <h3 contenteditable="true" class="question-title">输入具体问题</h3>
+    <input type="date" class="date-picker">
+  `;
+
+            // 添加拖拽事件
+            newElement.addEventListener('dragstart', (event) => {
+              event.dataTransfer.setData('type', 'date'); // 设置拖拽类型
+              const question = newElement.querySelector('.question-title').innerText; // 获取问题内容
+              event.dataTransfer.setData('question', question); // 保存问题内容
+            });
+
+            break;
+
+          //提交按钮组件
+          case 'submit-button':
+            newElement = document.createElement('div');
+            newElement.classList.add('submit-button-component');
+            newElement.setAttribute('draggable', 'true'); // 允许拖拽
+            newElement.innerHTML = `
+    <button type="button" class="submit-button">提交</button>
+  `;
+
+            // 添加拖拽事件
+            newElement.addEventListener('dragstart', (event) => {
+              event.dataTransfer.setData('type', 'submit-button'); // 设置拖拽类型
+            });
+
+            break;
+          default:
+            alert('未知组件类型');
+            return null;
+        }
+
+        // 添加样式
+        newElement.classList.add('enchant-item');
+        newElement.style.border = '1px solid #ddd';
+        newElement.style.padding = '10px';
+        newElement.style.margin = '10px 0';
+        return newElement;
+
+
+
+      }
+
+      // 获取参数输入框
+      const heightInput = document.querySelector('.parameterArea div:nth-child(3) input');
+      const widthInput = document.querySelector('.parameterArea div:nth-child(4) input');
+      const borderRadiusInput = document.querySelector('.parameterArea div:nth-child(5) input');
+
+      // 默认样式
+      const defaultStyles = {
+        height: '150px',
+        width: '700px',
+        borderRadius: '5px',
+      };
+
+      // 更新附魔台内组件样式
+      function updateComponentStyle() {
+        if (currentComponent) {
+          // 获取用户输入的值或使用默认值
+          const height = heightInput.value.trim() || defaultStyles.height;
+          let width = widthInput.value.trim() || defaultStyles.width;
+          const borderRadius = borderRadiusInput.value.trim() || defaultStyles.borderRadius;
+
+          // 限制最大宽度为 700px
+          if (parseInt(width, 10) > 700) {
+            width = '700px';
+            alert('宽度已限制为最大值 700px');
+          }
+
+          widthInput.value = width.endsWith('px') ? width : `${width}px`;
+          heightInput.value = height.endsWith('px') ? height : `${height}px`;
+          borderRadiusInput.value = borderRadius.endsWith('px') ? borderRadius : `${borderRadius}px`;
+
+          // 更新组件样式
+          currentComponent.style.height = height.endsWith('px') ? height : `${height}px`;
+          currentComponent.style.width = width.endsWith('px') ? width : `${width}px`;
+          currentComponent.style.borderRadius = borderRadius.endsWith('px') ? borderRadius : `${borderRadius}px`;
+        }
+      }
+
+      // 监听输入框的失去焦点事件
+      heightInput.addEventListener('blur', updateComponentStyle);
+      widthInput.addEventListener('blur', updateComponentStyle);
+      borderRadiusInput.addEventListener('blur', updateComponentStyle);
+
+
+      // 获取问卷设计区
+      const surveyContent = document.querySelector('.surveyContent');
+      const sortableList = document.getElementById('sortable-list');
+
+      //保存数据到回收站
+      function saveRecycleBinToLocalStorage() {
+        const recycleBinList = document.querySelector('.recycleBinList');
+        const items = [...recycleBinList.children].map(item => {
+          return {
+            html: item.outerHTML,
+            className: item.className,
+            style: item.style.cssText,
+            dataType: item.getAttribute('data-type'),
+          };
+        });
+        localStorage.setItem('recycleBinData', JSON.stringify(items));
+      }
+
+      //回收站数据加载
+      function loadRecycleBinFromLocalStorage() {
+        const recycleBinList = document.querySelector('.recycleBinList');
+        recycleBinList.innerHTML = '';
+
+        const data = localStorage.getItem('recycleBinData');
+        if (!data) return;
+
+        const items = JSON.parse(data);
+        items.forEach(itemData => {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = itemData.html.trim();
+          const element = tempDiv.firstElementChild;
+
+          // 还原类名和样式
+          element.className = itemData.className || '';
+          element.style.cssText = itemData.style || '';
+          if (itemData.dataType) {
+            element.setAttribute('data-type', itemData.dataType);
+          }
+
+          if (element.getAttribute('data-type') === 'text') {
+            const textarea = element.querySelector('textarea');
+            if (textarea) {
+              textarea.value = element.getAttribute('data-textarea-value') || '';
+            }
+          }
+
+          // 绑定彻底删除按钮事件
+          const recycleDeleteBtn = element.querySelector('.recycle-delete-button');
+          if (recycleDeleteBtn) {
+            recycleDeleteBtn.addEventListener('click', () => {
+              recycleBinList.removeChild(element);
+              saveRecycleBinToLocalStorage();
+            });
+          }
+
+          recycleBinList.appendChild(element);
+        });
+      }
+
+      // 页面加载时调用
+      window.addEventListener('DOMContentLoaded', async () => {
+
+        const surveyId = getQueryParam('surveyId');
+        if (surveyId) {
+          await loadSurveyFromServer(surveyId);
+        } else {
+          loadFromLocalStorage();
+        }
+
+        loadRecycleBinFromLocalStorage();
+      });
+
+
+
+      function renderSurvey(surveyData) {
+        const surveyTitleInput = document.getElementById('surveyTitle');
+        const sortableList = document.getElementById('sortable-list');
+
+        // 解析 content 字符串为数组
+        let contentArray = [];
+        if (typeof surveyData.content === 'string') {
+          try {
+            contentArray = JSON.parse(surveyData.content);
+          } catch (e) {
+            console.error('解析content失败:', e);
+            contentArray = [];
+          }
+        } else if (Array.isArray(surveyData.content)) {
+          contentArray = surveyData.content;
+        } else {
+          console.warn('content格式异常:', surveyData.content);
+          contentArray = [];
+        }
+
+        // 清空设计区
+        sortableList.innerHTML = '';
+
+        // 设置问卷标题
+        surveyTitleInput.value = surveyData.title || '';
+
+        // 遍历内容数组，生成组件
+        contentArray.forEach(item => {
+          const tempContainer = document.createElement('div');
+          tempContainer.innerHTML = item.html.trim();
+          const newElement = tempContainer.firstElementChild;
+
+          // 应用样式
+          if (item.styles) {
+            newElement.style.width = item.styles.width || 'auto';
+            newElement.style.height = item.styles.height || 'auto';
+            newElement.style.borderRadius = item.styles.borderRadius || '0px';
+          }
+
+          newElement.querySelectorAll('span').forEach(span => {
+            const option = document.createElement('option');
+            option.innerHTML = span.innerHTML;
+            span.parentNode.replaceChild(option, span);
+          });
+
+          // 恢复内容（根据类型）
+          switch (item.type) {
+            case 'single-choice':
+            case 'multiple-choice': {
+              const optionsContainer = newElement.querySelector('.options');
+              if (optionsContainer) {
+                optionsContainer.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(input => {
+                  input.disabled = true;
+                });
+                optionsContainer.querySelectorAll('.option-input').forEach(input => {
+                  input.disabled = true;
+                });
+              }
+              break;
+            }
+          }
+
+          bindSurveyItemEvents(newElement); // 绑定事件
+
+          // 添加到设计区
+          sortableList.appendChild(newElement);
+        });
+      }
+
+      async function loadSurveyFromServer(surveyId) {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) {
+            alert('未登录，请先登录！');
+            window.location.href = 'index.html';
+            return;
+          }
+          const response = await fetch(`http://127.0.0.1:3007/survey/getContent?id=${surveyId}`, {
+            headers: {
+              'Authorization': token,
+              'Content-Type': 'application/json',
+            }
+          });
+          const result = await response.json();
+          if (result.status === 0) {
+            renderSurvey(result.data);
+            if (result.data.is_post == 1) {
+              const pushBtn = document.getElementById('pushSurveyBtn');
+              if (pushBtn) {
+                pushBtn.innerHTML = '已推送'
+                pushBtn.disabled = true;
+                pushBtn.style.cursor = 'not-allowed';
+                pushBtn.title = '推送功能已禁用';
+              }
+            }
+          } else {
+            alert('获取问卷数据失败：' + result.message);
+            window.location.href = 'app.html'
+          }
+        } catch (error) {
+          console.error('请求失败:', error);
+        }
+      }
+
+
+      //删除按钮功能函数
+      function handler(event) {
+        const btn = event.target;
+        const li = btn.closest('.survey-item');
+        if (!li) return;
+
+        const clone = li.cloneNode(true);
+        clone.setAttribute('data-type', li.getAttribute('data-type'));
+        const cloneDeleteBtn = clone.querySelector('.delete-button');
+        const recycleBinList = document.querySelector('.recycleBinList');
+        if (cloneDeleteBtn) {
+          cloneDeleteBtn.remove();
+        }
+        clone.removeAttribute('draggable');
+        // 添加回收站专用类，覆盖设计区样式
+        clone.classList.add('recycle-item');
+        const textarea = clone.querySelector('textarea');
+        if (textarea) {
+          clone.setAttribute('data-textarea-value', textarea.value);
+        }
+
+        const restoreBtn = document.createElement('button');
+        restoreBtn.textContent = '恢复';
+        restoreBtn.classList.add('restore-button');
+        restoreBtn.style.marginRight = '10px';
+        clone.appendChild(restoreBtn);
+
+        //绑定回收站恢复按钮
+        restoreBtn.addEventListener('click', () => {
+          console.log('恢复按钮点击', clone);
+          restoreComponent(clone);
+        });
+
+        const recycleDeleteBtn = document.createElement('button');
+        recycleDeleteBtn.textContent = '彻底删除';
+        recycleDeleteBtn.classList.add('recycle-delete-button');
+        recycleDeleteBtn.style.marginTop = '10px';
+        clone.appendChild(recycleDeleteBtn);
+
+        //绑定回收站彻底删除按钮
+        recycleDeleteBtn.addEventListener('click', () => {
+          recycleBinList.removeChild(clone);
+          saveRecycleBinToLocalStorage();
+        });
+
+        const firstChild = recycleBinList.firstChild;
+        if (firstChild) {
+          recycleBinList.insertBefore(clone, firstChild);
+        } else {
+          recycleBinList.appendChild(clone);
+        }
+
+        //从设计区移除
+        if (sortableList.contains(li)) {
+          sortableList.removeChild(li);
+          saveToLocalStorage(); // 保存到 localStorage
+        }
+
+        // 保存回收站数据
+        saveRecycleBinToLocalStorage();
+
+      }
+
+      //回收站回复按钮
+      function restoreComponent(component) {
+
+        // 判断附魔台是否已有组件
+        const enchantArea = document.querySelector('.operationArea');
+        if (enchantArea.children.length > 0) {
+          const confirmReplace = confirm('附魔台已有组件，是否替换？');
+          if (!confirmReplace) {
+            return; // 用户取消恢复
+          }
+          // 移除旧组件
+          enchantArea.innerHTML = '';
+        }
+
+        // 获取组件类型
+        const type = component.getAttribute('data-type');
+        console.log('恢复组件类型:', type);
+        if (!type) {
+          alert('恢复失败：组件类型未知');
+          return;
+        }
+        // 调用 createComponent 生成新组件
+        const newComponent = createComponent(type);
+        if (!newComponent) {
+          alert('恢复失败：未知组件类型');
+          return;
+        }
+
+        // 移除回收站专用类
+        component.classList.remove('recycle-item');
+        component.classList.remove('survey-item');
+        component.classList.add('enchant-item');
+        newComponent.style.cssText = component.style.cssText;
+
+        // 根据类型恢复内容
+        switch (type) {
+          case 'introduction': {
+            const oldP = component.querySelector('p');
+            const newP = newComponent.querySelector('p');
+            if (oldP && newP) {
+              newP.innerText = oldP.innerText;
+            }
+            break;
+          }
+          case 'single-choice':
+          case 'multiple-choice': {
+            const oldQuestion = component.querySelector('h3')?.innerText || '';
+            const oldOptions = [...component.querySelectorAll('.option-input')].map(input => ({
+              value: input.value,
+              style: input.style.cssText
+            }));
+
+            const newQuestion = newComponent.querySelector('h3');
+            const newOptionsContainer = newComponent.querySelector('.options');
+
+            if (newQuestion) newQuestion.innerText = oldQuestion;
+
+            if (newOptionsContainer) {
+              newOptionsContainer.innerHTML = '';
+
+              oldOptions.forEach(option => {
+                const label = document.createElement('label');
+                const divOption = document.createElement('div');
+                divOption.classList.add('option');
+
+                const input = document.createElement('input');
+                input.type = (type === 'single-choice') ? 'radio' : 'checkbox';
+                input.disabled = true;
+
+                const textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.classList.add('option-input');
+                textInput.value = option.value || '';
+                textInput.style.cssText = option.style || '';
+
+                divOption.appendChild(input);
+                divOption.appendChild(textInput);
+
+                label.appendChild(divOption);
+                newOptionsContainer.appendChild(label);
+              });
+            }
+            break;
+          }
+          case 'text': {
+            const oldQuestion = component.querySelector('h3')?.innerText || '';
+            const oldTextareaValue = component.querySelector('textarea')?.value || '';
+            const newQuestion = newComponent.querySelector('h3');
+            const newTextarea = newComponent.querySelector('textarea');
+
+            if (newQuestion) newQuestion.innerText = oldQuestion;
+            if (newTextarea) newTextarea.value = oldTextareaValue;
+            break;
+          }
+          case 'rating': {
+            const oldQuestion = component.querySelector('h3')?.innerText || '';
+            const oldValue = component.querySelector('.rating-slider')?.value || 3;
+            const newQuestion = newComponent.querySelector('h3');
+            const newSlider = newComponent.querySelector('.rating-slider');
+            const newRatingValue = newComponent.querySelector('.rating-value');
+
+            if (newQuestion) newQuestion.innerText = oldQuestion;
+            if (newSlider) newSlider.value = oldValue;
+            if (newRatingValue) newRatingValue.textContent = `当前评分: ${oldValue}`;
+            break;
+          }
+          case 'date': {
+            const oldQuestion = component.querySelector('h3')?.innerText || '';
+            const oldDateValue = component.querySelector('.date-picker')?.value || '';
+            const newQuestion = newComponent.querySelector('h3');
+            const newDatePicker = newComponent.querySelector('.date-picker');
+
+            if (newQuestion) newQuestion.innerText = oldQuestion;
+            if (newDatePicker) newDatePicker.value = oldDateValue;
+            break;
+          }
+          case 'submit-button': {
+            break;
+          }
+          default:
+            alert('未知组件类型');
+            return;
+        }
+
+
+
+        // 移除恢复和彻底删除按钮
+        const restoreBtn = component.querySelector('.restore-button');
+        if (restoreBtn) restoreBtn.remove();
+        const recycleDeleteBtn = component.querySelector('.recycle-delete-button');
+        if (recycleDeleteBtn) recycleDeleteBtn.remove();
+
+        // 恢复附魔台所需类和属性
+        component.classList.add('enchant-item');
+        component.setAttribute('draggable', 'true');
+
+        // 添加到附魔台
+        enchantArea.appendChild(newComponent);
+
+        currentComponent = newComponent; // 更新当前组件
+
+        // 从回收站移除
+        const recycleBinList = document.querySelector('.recycleBinList');
+        if (recycleBinList.contains(component)) {
+          recycleBinList.removeChild(component);
+        }
+
+        saveRecycleBinToLocalStorage();
+      }
+
+      // 允许问卷设计区接收拖拽
+      surveyContent.addEventListener('dragover', (event) => {
+        event.preventDefault(); // 阻止默认行为，允许拖拽
+
+      });
+
+      // 拖拽完成后，将组件从附魔台移动到问卷设计区
+      surveyContent.addEventListener('drop', (event) => {
+        event.preventDefault();
+        if (draggedFromToolList) {
+          alert('请先将组件拖拽到附魔台进行自定义，然后再拖拽到设计区！');
+          return; // 阻止从工具区直接拖拽到设计区
+        }
+
+        // 重置 isSaved 状态
+        isSaved = false;
+
+        const type = event.dataTransfer.getData('type'); // 获取拖拽的组件类型
+        const content = event.dataTransfer.getData('content'); // 获取引言内容
+        const options = JSON.parse(event.dataTransfer.getData('options') || '[]'); // 获取选项内容，默认为空数组
+
+        if (type === 'reorder') {
+          // 如果是排序操作，不生成新组件
+          return;
+        }
+
+        // 获取附魔台组件的样式
+        const componentStyles = {
+          width: currentComponent.style.width,
+          height: currentComponent.style.height,
+          borderRadius: currentComponent.style.borderRadius,
+        };
+
+        // 根据组件类型动态生成组件
+        let newElement = document.createElement('li');
+        newElement.classList.add('survey-item');
+        newElement.setAttribute('draggable', 'true');
+        newElement.setAttribute('data-type', type); // 设置组件类型
+
+        switch (type) {
+          // 引言组件
+          case 'introduction': {
+            newElement.classList.add('survey-item');
+            newElement.innerHTML = `
+          <p>${content}</p>
+          <button class="delete-button">删除</button>
+          `;
+            newElement.style.width = componentStyles.width;
+            newElement.style.height = componentStyles.height;
+            newElement.style.borderRadius = componentStyles.borderRadius;
+            // 添加删除功能
+            const deleteButton = newElement.querySelector('.delete-button');
+            deleteButton.addEventListener('click', handler)
+            sortableList.appendChild(newElement);
+            break;
+          }
+
+          //单选题
+          case 'single-choice': {
+            const question = event.dataTransfer.getData('question'); // 获取问题内容
+            const filteredOptions = options.filter(option => option.trim() !== '');
+            if (filteredOptions.length === 0) {
+              alert('单选题的所有选项均为空，无法拖动到设计区！');
+              return; // 阻止拖动
+            }
+
+            newElement.classList.add('survey-item');
+            newElement.style.width = '700px'; // 设置默认宽度
+            newElement.innerHTML = `
+          <h3>${question}</h3>
+      <div class="options">
+        ${filteredOptions.map(option => `
+          <label><div class="option">
+        <input type="radio" name="single-choice">
+        <input type="text" class="option-input" value="${option}" placeholder="请输入选项内容">
+      </div></label>
+    `).join('')}
+      </div><button class="delete-button">删除</button>
+
+    `;
+            newElement.style.width = componentStyles.width;
+            newElement.style.height = componentStyles.height;
+            newElement.style.borderRadius = componentStyles.borderRadius;
+
+            // 添加删除功能
+            const deleteButton = newElement.querySelector('.delete-button');
+            deleteButton.addEventListener('click', handler);
+            sortableList.appendChild(newElement); // 添加到问卷设计区
+            break;
+          }
+
+          //多选题
+          case 'multiple-choice': {
+            const question = event.dataTransfer.getData('question'); // 获取问题内容
+            const filteredOptions = options.filter(option => option.trim() !== '');
+            if (filteredOptions.length === 0) {
+              alert('多选题的所有选项均为空，无法拖动到设计区！');
+              return; // 阻止拖动
+            }
+            if (filteredOptions.length === 1) {
+              alert('多选题至少应有两个选项！');
+              return; // 阻止拖动
+            }
+
+            newElement.classList.add('survey-item');
+            newElement.innerHTML = `
+    <h3>${question}</h3>
+    <div class="options">
+      ${filteredOptions.map(option => `
+        <label><div class="option">
+        <input type="radio" name="single-choice">
+        <input type="text" class="option-input" value="${option}" placeholder="请输入选项内容">
+      </div></label>
+    `).join('')}
+    </div>
+    <button class="delete-button">删除</button>
+  `;
+            newElement.style.width = componentStyles.width;
+            newElement.style.height = componentStyles.height;
+            newElement.style.borderRadius = componentStyles.borderRadius;
+
+            // 添加删除功能
+            const deleteButton = newElement.querySelector('.delete-button');
+            deleteButton.addEventListener('click', handler);
+
+            sortableList.appendChild(newElement); // 添加到问卷设计区
+            break;
+          }
+
+
+          //简答题
+          case 'text': {
+            const question = event.dataTransfer.getData('question'); // 获取问题内容
+
+            newElement.classList.add('survey-item');
+            // newElement.setAttribute('draggable', 'true'); // 允许拖拽
+            newElement.innerHTML = `
+    <h3>${question}</h3>
+    <textarea class="text-answer" placeholder="用户回答区域" ></textarea>
+    <button class="delete-button">删除</button>
+  `;
+            newElement.style.width = componentStyles.width;
+            newElement.style.height = componentStyles.height;
+            newElement.style.borderRadius = componentStyles.borderRadius;
+
+            // 添加删除功能
+            const deleteButton = newElement.querySelector('.delete-button');
+            deleteButton.addEventListener('click', handler);
+
+            sortableList.appendChild(newElement); // 添加到问卷设计区
+            break;
+          }
+
+          //评分组件
+          case 'rating': {
+            const question = event.dataTransfer.getData('question'); // 获取问题内容
+
+            newElement.classList.add('survey-item');
+            newElement.innerHTML = `
+    <h3>${question}</h3>
+    <input type="range" class="rating-slider" min="1" max="5" value="3">
+    <div class="rating-value">当前评分: 3</div>
+    <button class="delete-button">删除</button>
+  `;
+            newElement.style.width = componentStyles.width;
+            newElement.style.height = componentStyles.height;
+            newElement.style.borderRadius = componentStyles.borderRadius;
+
+            // 实时更新评分值
+            const slider = newElement.querySelector('.rating-slider');
+            const ratingValue = newElement.querySelector('.rating-value');
+            slider.addEventListener('input', () => {
+              ratingValue.textContent = `当前评分: ${slider.value}`;
+            });
+
+            // 添加删除功能
+            const deleteButton = newElement.querySelector('.delete-button');
+            deleteButton.addEventListener('click', handler);
+
+            sortableList.appendChild(newElement); // 添加到问卷设计区
+            break;
+          }
+
+          //日期选择组件
+          case 'date': {
+            const question = event.dataTransfer.getData('question'); // 获取问题内容
+
+            // 检查问题内容是否为空
+            if (!question || question.trim() === '') {
+              alert('日期选择问题不能为空，请输入问题内容！');
+              return; // 阻止拖拽
+            }
+
+            newElement.classList.add('survey-item');
+            newElement.innerHTML = `
+    <h3>${question}</h3>
+    <input type="date" class="date-picker">
+    <button class="delete-button">删除</button>
+  `;
+            newElement.style.width = componentStyles.width;
+            newElement.style.height = componentStyles.height;
+            newElement.style.borderRadius = componentStyles.borderRadius;
+
+            // 添加删除功能
+            const deleteButton = newElement.querySelector('.delete-button');
+            deleteButton.addEventListener('click', handler);
+
+            sortableList.appendChild(newElement); // 添加到问卷设计区
+            break;
+          }
+
+          //提交按钮组件
+          case 'submit-button': {
+            newElement.classList.add('survey-item');
+            newElement.innerHTML = `
+    <button type="button" class="submit-button">提交</button>
+     <button class="delete-button">删除</button>
+  `;
+            newElement.style.width = componentStyles.width;
+            newElement.style.height = componentStyles.height;
+            newElement.style.borderRadius = componentStyles.borderRadius;
+
+            // 添加提交按钮点击事件
+            const submitButton = newElement.querySelector('.submit-button');
+            submitButton.addEventListener('click', () => {
+              alert('问卷已提交！');
+              // 在这里可以添加提交问卷的逻辑，例如将数据发送到服务器
+            });
+
+            // 添加删除功能
+            const deleteButton = newElement.querySelector('.delete-button');
+            deleteButton.addEventListener('click', handler);
+            sortableList.appendChild(newElement); // 添加到问卷设计区
+            break
+          }
+          default:
+            alert('未知组件类型');
+            return null;
+        }
+        saveToLocalStorage();
+      })
+
+      // 初始化拖拽状态
+      let draggedItem = null;
+      let isFromSortableList = false;
+
+      // 监听拖拽开始事件
+      sortableList.addEventListener('dragstart', (event) => {
+        if (event.target.classList.contains('survey-item')) {
+          draggedItem = event.target;
+          isFromSortableList = true; // 标记为从设计区的 <li> 开始拖拽
+          event.target.style.opacity = '0.5'; // 拖拽时降低透明度
+          event.dataTransfer.setData('type', 'reorder');
+        }
+      });
+
+      // 监听拖拽结束事件
+      sortableList.addEventListener('dragend', (event) => {
+        if (event.target.classList.contains('survey-item')) {
+          draggedItem = null;
+          isFromSortableList = false; // 重置标记
+          draggedFromToolList = false; // 重置工具区拖拽标记
+          event.target.style.opacity = '1'; // 恢复透明度
+        }
+        saveToLocalStorage();
+      });
+
+      // 监听拖拽经过事件
+      sortableList.addEventListener('dragover', (event) => {
+        if (!isFromSortableList) return; // 如果不是从设计区的 <li> 开始拖拽，则不触发排序功能
+
+        event.preventDefault(); // 阻止默认行为，允许拖拽
+
+        const afterElement = getDragAfterElement(sortableList, event.clientY);
+
+        // 插入拖拽的组件
+        if (afterElement == null) {
+          sortableList.appendChild(draggedItem);
+        } else {
+          sortableList.insertBefore(draggedItem, afterElement);
+        }
+
+        // 获取拖拽目标的下一个元素
+        function getDragAfterElement(container, y) {
+          const draggableElements = [...container.querySelectorAll('.survey-item:not(.dragging)')];
+
+          return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+              return { offset: offset, element: child };
+            } else {
+              return closest;
+            }
+          }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+      })
+    </script>
+
+    <script>
+      //预览按钮点击事件
+      // 获取预览按钮
+      const previewButton = document.getElementById('previewButton');
+
+      // 预览按钮点击事件
+      previewButton.addEventListener('click', () => {
+        // 创建浮窗容器
+        const previewModal = document.createElement('div');
+        previewModal.classList.add('preview-modal');
+
+        // 创建浮窗内容
+        const previewContent = document.createElement('div');
+        previewContent.classList.add('preview-content');
+
+        // 添加关闭按钮
+        const closeButton = document.createElement('button');
+        closeButton.textContent = '关闭';
+        closeButton.classList.add('close-button');
+        closeButton.addEventListener('click', () => {
+          document.body.removeChild(previewModal); // 移除浮窗
+        });
+
+        // 获取问卷标题
+        const surveyTitle = document.getElementById('surveyTitle').value || '未命名问卷';
+
+        // 获取问卷设计区内容并移除删除按钮
+        const surveyItems = [...sortableList.children].map((item) => {
+          const clonedItem = item.cloneNode(true); // 克隆节点
+          const deleteButton = clonedItem.querySelector('.delete-button');
+          if (deleteButton) {
+            deleteButton.remove(); // 移除删除按钮
+          }
+          return clonedItem.outerHTML; // 返回修改后的 HTML
+        }).join('');
+
+        // 设置浮窗内容
+        previewContent.innerHTML = `
+    <h2>${surveyTitle}</h2>
+    <ul class="preview-list">
+      ${surveyItems}
+    </ul>
+  `;
+        previewContent.appendChild(closeButton);
+
+        // 将内容添加到浮窗容器
+        previewModal.appendChild(previewContent);
+
+        // 添加浮窗到页面
+        document.body.appendChild(previewModal);
+      });
+
+
+      let isSaved = false; // 标记问卷是否已保存
+
+      const saveButton = document.getElementById('saveButton');
+
+      // 保存按钮点击事件
+      saveButton.addEventListener('click', async () => {
+        saveToLocalStorage();
+        const token = localStorage.getItem('token'); // 从 localStorage 获取 token
+        const surveyId = getQueryParam('surveyId');
+
+        if (!token) {
+          alert('用户未登录，请先登录！');
+          window.location.href = 'index.html'; // 跳转到登录页面
+          return;
+        }
+
+        const user_id = localStorage.getItem('user_id');
+        console.log('保存时 user_id:', user_id);
+        if (!user_id) {
+          alert('用户未登录或登录信息异常，请重新登录！');
+          window.location.href = 'index.html';
+          return;
+        }
+
+
+        // 获取问卷标题
+        const surveyTitle = document.getElementById('surveyTitle').value.trim();
+        if (!surveyTitle) {
+          alert('问卷标题不能为空！');
+          return;
+        }
+
+        // 获取问卷设计区内容
+        const surveyItems = [...sortableList.children].map((item) => {
+          const clonedItem = item.cloneNode(true); // 克隆节点
+          const deleteButton = clonedItem.querySelector('.delete-button');
+          if (deleteButton) {
+            deleteButton.remove(); // 移除删除按钮
+          }
+
+          // 提取组件样式
+          const styles = {
+            width: item.style.width || 'auto',
+            height: item.style.height || 'auto',
+            borderRadius: item.style.borderRadius || '0px',
+          };
+
+          return {
+            html: clonedItem.outerHTML, // 保存组件的 HTML
+            styles, // 保存组件的样式
+            type: item.getAttribute('data-type'), // 保存组件类型
+          };
+        });
+        // 构造请求数据
+        const surveyData = {
+          user_id,
+          title: surveyTitle,
+          content: surveyItems,
+          id: surveyId
+        };
+
+        if (surveyId) {
+          const confirmUpdate = confirm('确定要修改问卷吗？');
+          if (!confirmUpdate) {
+            return; // 用户取消保存
+          }
+
+          try {
+            const response = await fetch('http://127.0.0.1:3007/survey/update', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${token}`,
+              },
+              body: JSON.stringify(surveyData),
+            });
+            const result = await response.json();
+            if (response.ok) {
+              addUserLog('修改问卷', surveyId)
+              alert(result.message || '问卷修改成功！');
+              isSaved = true;
+            } else {
+              alert(result.message || '问卷修改失败！');
+            }
+          } catch (error) {
+            console.error('修改问卷时发生错误:', error);
+            alert('修改问卷时发生错误，请稍后重试！');
+          }
+          return;
+        }
+
+        const confirmSave = confirm('确定要保存问卷吗？');
+        if (!confirmSave) {
+          return; // 用户取消保存
+        }
+
+        try {
+          const response = await fetch('http://127.0.0.1:3007/survey/save', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `${token}`,
+            },
+            body: JSON.stringify(surveyData),
+          });
+
+          const result = await response.json();
+          if (response.ok) {
+            addUserLog('保存新问卷')
+            alert(result.message || '问卷保存成功！');
+            isSaved = true; // 标记问卷已保存
+          } else {
+            alert(result.message || '问卷保存失败！');
+          }
+        } catch (error) {
+          console.error('保存问卷时发生错误:', error);
+          alert('保存问卷时发生错误，请稍后重试！');
+        }
+      });
+
+
+      //删除问卷按钮点击事件
+      const deleteButton = document.getElementById('deleteButton');
+      deleteButton.addEventListener('click', async () => {
+
+        function getQueryParam(name) {
+          const urlParams = new URLSearchParams(window.location.search);
+          return urlParams.get(name);
+        }
+
+        let surveyId = getQueryParam('surveyId');
+        if (surveyId) {
+          localStorage.setItem('currentSurveyId', surveyId);
+        }
+
+
+        if (!surveyId) {
+          alert('未找到问卷ID，无法删除！');
+          return;
+        }
+
+        const confirmDelete = confirm('确定要删除该问卷吗？此操作不可撤销！');
+        if (!confirmDelete) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('未登录，请重新登录！');
+          window.location.href = 'index.html';
+          return;
+        }
+
+        try {
+          const response = await fetch(`http://127.0.0.1:3007/survey/delete`, {
+            method: 'POST',
+            headers: {
+              'Authorization': token,
+              'Content-Type': 'application/json',
+            }, body: JSON.stringify({ id: surveyId })
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.status === 0) {
+            alert('问卷删除成功！');
+            addUserLog('删除问卷', surveyId)
+            localStorage.removeItem('savedSurvey');
+            localStorage.removeItem('currentSurveyId');
+            window.location.href = 'app.html';
+          } else {
+            alert('删除失败：' + (result.message || '未知错误'));
+          }
+        } catch (error) {
+          console.error('删除问卷时出错：', error);
+          alert('删除问卷时发生错误，请稍后重试！');
+        }
+      });
+
+
+      //导出图片按钮点击事件
+      document.getElementById('exportImageButton').addEventListener('click', () => {
+        const surveyContent = document.querySelector('.surveyContent');
+        if (!surveyContent) {
+          alert('未找到问卷内容区域，无法导出图片');
+          return;
+        }
+
+        const titleInput = document.getElementById('surveyTitle');
+        const titleLabel = document.querySelector('.title span');
+        const deleteBtns = document.querySelectorAll('.delete-button');
+        if (!titleInput) {
+          alert('未找到问卷标题输入框');
+          return;
+        }
+
+        // 创建一个临时显示标题的元素
+        const tempTitle = document.createElement('div');
+        tempTitle.style.fontSize = '24px';
+        tempTitle.style.fontWeight = 'bold';
+        tempTitle.style.marginBottom = '10px';
+        tempTitle.textContent = titleInput.value || '未命名问卷';
+
+        // 隐藏输入框，插入临时标题
+        titleInput.style.display = 'none';
+        titleLabel.style.display = 'none';
+        deleteBtns.forEach(btn => btn.style.display = 'none'); // 隐藏删除按钮
+        const titleParent = titleInput.parentElement;
+        titleParent.appendChild(tempTitle);
+
+        const confirmExport = confirm('确定要导出问卷设计区为图片吗？');
+        if (!confirmExport) {
+          return; // 用户取消导出
+        }
+
+        html2canvas(surveyContent, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#fff'
+        }).then(canvas => {
+          canvas.toBlob(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${titleInput.value}_${new Date().toISOString().slice(0, 10)}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            addUserLog('导出问卷图片')
+
+            // 恢复输入框，移除临时标题
+            titleInput.style.display = '';
+            titleLabel.style.display = '';
+            deleteBtns.forEach(btn => btn.style.display = ''); // 显示删除按钮
+            titleParent.removeChild(tempTitle);
+          });
+        }).catch(err => {
+          console.error('导出图片失败:', err);
+          alert('导出图片失败，请检查控制台错误信息');
+          // 出错时也恢复输入框和移除临时标题
+          titleInput.style.display = '';
+          titleLabel.style.display = '';
+          deleteBtns.forEach(btn => btn.style.display = ''); // 显示删除按钮
+          if (tempTitle.parentElement) {
+            tempTitle.parentElement.removeChild(tempTitle);
+          }
+        });
+      });
+
+
+      //回收站按钮点击事件
+      const recycleBinButton = document.getElementById('recycleBin');
+      const recycleBin = document.querySelector('.recycleBin');
+      const backBtn = document.getElementById('back');
+
+      recycleBinButton.addEventListener('click', () => {
+        recycleBinButton.style.display = 'none';
+        recycleBin.style.display = 'block';
+        recycleBin.classList.remove('hide');
+        recycleBin.classList.add('show');
+      });
+
+      recycleBin.addEventListener('animationend', (event) => {
+        if (recycleBin.classList.contains('hide')) {
+          recycleBin.style.display = 'none';
+          recycleBin.classList.remove('hide');
+        }
+      });
+
+      backBtn.addEventListener('click', () => {
+        recycleBin.classList.remove('show');
+        recycleBin.classList.add('hide');
+        recycleBinButton.style.display = 'block';
+      });
+
+      // 从 localStorage 还原问卷内容
+      function loadFromLocalStorage() {
+        const savedSurvey = localStorage.getItem('savedSurvey');
+        if (savedSurvey) {
+          const surveyData = JSON.parse(savedSurvey);
+
+          // 还原问卷标题
+          document.getElementById('surveyTitle').value = surveyData.title;
+
+          // 还原问卷内容
+          surveyData.content.forEach((item) => {
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = item.html.trim(); // 去掉多余的空格
+            const newElement = tempContainer.firstChild;
+
+            // 应用样式
+            newElement.style.width = item.styles.width;
+            newElement.style.height = item.styles.height;
+            newElement.style.borderRadius = item.styles.borderRadius;
+
+            // 还原组件内容
+            if (item.type === 'introduction') {
+              const paragraph = newElement.querySelector('p');
+              if (paragraph) {
+                paragraph.innerText = item.content || '';
+              }
+            } else if (item.type === 'single-choice' || item.type === 'multiple-choice') {
+              const content = item.content || { question: '', options: [] };
+              const question = content.question;
+              const options = content.options;
+              const questionElement = newElement.querySelector('h3');
+              const optionsContainer = newElement.querySelector('.options');
+
+              if (questionElement) {
+                questionElement.innerText = question;
+              }
+
+              if (optionsContainer) {
+                optionsContainer.innerHTML = ''; // 清空
+
+                options.forEach(option => {
+                  const label = document.createElement('label');
+                  const divOption = document.createElement('div');
+                  divOption.classList.add('option');
+
+                  const input = document.createElement('input');
+                  input.type = option.type || (item.type === 'single-choice' ? 'radio' : 'checkbox');
+                  input.disabled = true;
+
+                  const textInput = document.createElement('input');
+                  textInput.type = 'text';
+                  textInput.classList.add('option-input');
+                  textInput.value = option.text || '';
+                  textInput.placeholder = '请输入选项内容';
+
+                  divOption.appendChild(input);
+                  divOption.appendChild(textInput);
+
+                  label.appendChild(divOption);
+                  optionsContainer.appendChild(label);
+                });
+              }
+            } else if (item.type === 'text') {
+              const questionElement = newElement.querySelector('h3');
+              if (questionElement) {
+                questionElement.innerText = item.content || '';
+              }
+            } else if (item.type === 'rating') {
+              const questionElement = newElement.querySelector('h3');
+              if (questionElement) {
+                questionElement.innerText = item.content || '';
+              }
+            } else if (item.type === 'date') {
+              const questionElement = newElement.querySelector('h3');
+              if (questionElement) {
+                questionElement.innerText = item.content || '';
+              }
+            }
+
+            bindSurveyItemEvents(newElement); // 绑定事件
+
+            sortableList.appendChild(newElement);
+          });
+        }
+      }
+
+      //组件绑定拖拽，删除事件函数
+      function bindSurveyItemEvents(item) {
+        // 绑定删除按钮事件
+        let deleteButton = item.querySelector('.delete-button');
+        if (!deleteButton) {
+          deleteButton = document.createElement('button');
+          deleteButton.classList.add('delete-button');
+          deleteButton.textContent = '删除';
+          item.appendChild(deleteButton);
+        }
+        deleteButton.addEventListener('click', (event) => {
+          const li = event.target.closest('.survey-item');
+          if (!li) return;
+
+          // 移动到回收站逻辑
+          const clone = li.cloneNode(true);
+          clone.classList.add('recycle-item');
+          clone.removeAttribute('draggable');
+
+          // 移除删除按钮
+          const oldDeleteBtn = clone.querySelector('.delete-button');
+          if (oldDeleteBtn) clone.removeChild(oldDeleteBtn);
+
+          // 添加恢复按钮
+          const restoreBtn = document.createElement('button');
+          restoreBtn.textContent = '恢复';
+          restoreBtn.classList.add('restore-button');
+          restoreBtn.style.marginRight = '10px';
+          clone.appendChild(restoreBtn);
+
+          // 添加彻底删除按钮
+          const recycleDeleteBtn = document.createElement('button');
+          recycleDeleteBtn.textContent = '彻底删除';
+          recycleDeleteBtn.classList.add('recycle-delete-button');
+          recycleDeleteBtn.style.marginTop = '10px';
+          clone.appendChild(recycleDeleteBtn);
+
+          // 绑定恢复按钮事件
+          restoreBtn.addEventListener('click', () => {
+            restoreComponent(clone);
+          });
+
+          // 绑定彻底删除按钮事件
+          recycleDeleteBtn.addEventListener('click', () => {
+            const recycleBinList = document.querySelector('.recycleBinList');
+            recycleBinList.removeChild(clone);
+            saveRecycleBinToLocalStorage();
+          });
+
+          // 插入回收站
+          const recycleBinList = document.querySelector('.recycleBinList');
+          const firstChild = recycleBinList.firstChild;
+          if (firstChild) {
+            recycleBinList.insertBefore(clone, firstChild);
+          } else {
+            recycleBinList.appendChild(clone);
+          }
+
+          // 从设计区移除
+          if (sortableList.contains(li)) {
+            sortableList.removeChild(li);
+          }
+
+          saveToLocalStorage();
+          saveRecycleBinToLocalStorage();
+        });
+
+        // 绑定拖拽事件
+        item.setAttribute('draggable', 'true');
+        item.classList.add('survey-item');
+
+        item.addEventListener('dragstart', (event) => {
+          draggedItem = item;
+          isFromSortableList = true;
+          event.dataTransfer.setData('type', 'reorder');
+          item.style.opacity = '0.5';
+        });
+
+        item.addEventListener('dragend', () => {
+          draggedItem = null;
+          isFromSortableList = false;
+          item.style.opacity = '1';
+          saveToLocalStorage();
+        });
+      }
+
+      // Base64 URL 安全编码
+      function base64UrlEncode(str) {
+        return btoa(unescape(encodeURIComponent(str)))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+      }
+
+      // 生成分享链接按钮事件
+      document.getElementById('shareButton').addEventListener('click', async () => {
+        const surveyTitle = document.getElementById('surveyTitle').value.trim();
+        if (!surveyTitle) {
+          alert('请先填写问卷标题');
+          return;
+        }
+
+        const token = localStorage.getItem('token');
+
+        // 获取当前问卷ID
+        const surveyId = getQueryParam('surveyId');
+        if (!surveyId) {
+          alert('未获取到问卷ID,无法生成分享链接');
+          return;
+        }
+
+        try {
+          // 调用后端接口更新分享次数
+          const response = await fetch('http://127.0.0.1:3007/survey/addshareCount', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token,
+            },
+            body: JSON.stringify({ id: surveyId }),
+          });
+
+          const result = await response.json();
+          if (result.status !== 0) {
+            console.warn('更新分享次数失败:', result.message);
+          }
+        } catch (error) {
+          console.error('调用更新分享次数接口失败:', error);
+        }
+
+
+        const surveyItems = [...sortableList.children].map(item => {
+          const clonedItem = item.cloneNode(true);
+          const deleteButton = clonedItem.querySelector('.delete-button');
+          if (deleteButton) deleteButton.remove();
+
+          const styles = {
+            width: item.style.width || 'auto',
+            height: item.style.height || 'auto',
+            borderRadius: item.style.borderRadius || '5px',
+          };
+
+          return {
+            html: clonedItem.outerHTML,
+            styles,
+            type: item.getAttribute('data-type'),
+          };
+        });
+
+        const shareData = {
+          title: surveyTitle,
+          content: surveyItems,
+        };
+
+        const jsonStr = JSON.stringify(shareData);
+        const encoded = base64UrlEncode(jsonStr);
+
+        addUserLog('创建问卷页面生成分享链接', surveyId)
+
+        // 生成分享链接
+        const shareUrl = `http://127.0.0.1:3007/HTML/shareSurvey.html?shareData=${encoded}`;
+
+        // 弹窗显示链接
+        prompt('请复制以下分享链接:', shareUrl);
+      });
+
+      //推送按钮点击事件
+      document.getElementById('pushSurveyBtn').addEventListener('click', async () => {
+        const surveyId = getQueryParam('surveyId');
+
+        if (!surveyId) {
+          alert('问卷ID不存在，无法推送');
+          return;
+        }
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('请先登录');
+          window.location.href = 'index.html';
+          return;
+        }
+
+        const confirmPush = confirm('确定要推送共享该问卷吗？');
+        if (!confirmPush) return;
+
+        try {
+          const response = await fetch('http://127.0.0.1:3007/survey/push', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token,
+            },
+            body: JSON.stringify({ id: surveyId }),
+          });
+
+          const result = await response.json();
+          if (result.status === 0) {
+            addUserLog('推送问卷', surveyId)
+            alert('推送成功！');
+          } else {
+            alert('推送失败：' + result.message);
+          }
+        } catch (error) {
+          console.error('推送请求失败:', error);
+          alert('推送请求失败，请稍后重试');
+        }
+      });
+
+
+      //封装addUserLog函数用以调用增加日志接口
+      async function addUserLog(action, surveyId = null) {
+        const token = localStorage.getItem('token');
+        const user_id = localStorage.getItem('user_id');
+
+        if (!token || !user_id) return;
+
+        const logData = {
+          user_id,
+          action,
+          survey_id: surveyId,
+          timestamp: new Date().toISOString(),
+        };
+
+        try {
+          const response = await fetch('http://127.0.0.1:3007/log/addLog', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token,
+            },
+            body: JSON.stringify(logData),
+          });
+
+          const result = await response.json();
+          if (result.status !== 0) {
+            console.warn('添加日志失败:', result.message);
+          }
+        } catch (error) {
+          console.error('调用添加日志接口失败:', error);
+        }
+      }
+    </script>
+</body>
+
+</html>

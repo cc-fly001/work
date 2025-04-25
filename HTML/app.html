@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>首页</title>
+  <link rel="stylesheet" href="../CSS/app.css">
+  <link rel="stylesheet" href="../CSS/slideShowing.css">
+</head>
+
+<body>
+  <!-- 浮窗 -->
+  <div id="modalOverlay" class="overlay"></div>
+  <div id="bindPhoneModal" class="modal">
+    <h2>绑定手机号</h2>
+    <p>请绑定您的手机号以必要时找回密码</p>
+    <!-- 手机号输入框 -->
+    <input type="text" id="phoneInput" placeholder="请输入手机号">
+    <p>点击按钮获得验证码</p>
+    <button id="sendCodeButton">发送验证码</button>
+
+    <!-- 验证码输入框 -->
+    <input type="text" id="verificationCodeInput" placeholder="请输入验证码">
+
+    <button id="bindPhoneButton">绑定</button>
+  </div>
+
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="navbar-left">
+      <span>QG问卷快捷平台</span>
+    </div>
+
+    <div class="navbar-right">
+      <div style="position: relative;"><a href="sharingPlatform.html">共享平台</a>
+        <span id="newCommentDot">0</span>
+      </div>
+      <div><a href="perCenter.html" class="profile-link">
+          <img src="../images/默认头像.png" alt="头像" class="avatar">
+          <span id="username">用户名</span>
+          <div id="userIntro" class="intro"></div>
+        </a></div>
+    </div>
+  </nav>
+
+
+
+  <div class="wrapper">
+
+    <div class="showing" style="position: relative; width: 80%; ">
+      <button id="prevBtn" class="carousel-arrow left-arrow" style=" left: 100px;">&#10094;</button>
+      <div class="slideShowing" id="surveyCarousel"></div> <button id="nextBtn" class="carousel-arrow right-arrow"
+        style="right: 100px;">&#10095;</button>
+    </div>
+
+    <button id="createSurveyButton">创建问卷</button>
+  </div>
+
+
+  <!-- 设计方案展示 -->
+  <div id="surveySidebar" class="survey-sidebar hide">
+    <div class="sidebar-header">
+      <h3>问卷列表</h3>
+      <button id="sortByViewCountBtn" style="margin-right: 10px;">按浏览次数排序</button>
+      <button id="closeSidebarBtn" class="sidebar-close-btn">&times;</button>
+    </div>
+    <div id="surveyCardList" class="survey-card-list"></div>
+  </div>
+
+  <!-- 侧边栏展开按钮 -->
+  <button id="openSidebarBtn" class="sidebar-open-btn">问卷列表</button>
+
+
+  <!-- 日志侧边栏 -->
+  <div id="logSidebar" class="survey-sidebar hide left-sidebar">
+    <div class="sidebar-header">
+      <h3>用户日志</h3>
+      <button id="closeLogSidebarBtn" class="sidebar-close-btn">&times;</button>
+    </div>
+    <div id="logList" class="survey-card-list">
+    </div>
+  </div>
+
+  <!-- 左侧侧边栏展开按钮 -->
+  <button id="openLogSidebarBtn" class="sidebar-open-btn left-sidebar-open-btn">用户日志</button>
+
+
+  <!-- 页面过渡效果 -->
+  <div class="loading">
+    <svg viewBox="0 0 50 50">
+      <circle r="25" cx="25" cy="25" />
+    </svg>
+    <p>创建问卷...</p>
+  </div>
+
+
+
+
+  <!-- 绑定手机号以及加载信息 -->
+  <script type="module">
+    // 用于存储当前问卷数据，方便排序
+    let surveysData = [];
+
+    // 获取问卷记录并展示
+    async function loadUserSurveys() {
+      const token = localStorage.getItem('token'); // 获取 token
+      const user_id = localStorage.getItem('user_id'); // 获取用户 ID4
+
+      if (!user_id) {
+        alert('用户未登录或登录信息已过期，请重新登录！');
+        window.location.href = 'index.html'; // 跳转到登录页面
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://127.0.0.1:3007/survey/list?user_id=${user_id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `${token}`,
+          }
+        });
+
+        const result = await response.json();
+        if (result.status === 0) {
+          surveysData = result.data;
+          const surveys = result.data;
+          const carousel = document.getElementById('surveyCarousel');
+
+          if (surveys.length === 0) {
+            carousel.innerHTML = '<p class="no-survey-message">暂无问卷记录</p>';
+            return;
+          }
+
+          // 动态生成轮播图内容
+          surveys.forEach((survey) => {
+            const slide = document.createElement('div');
+            slide.classList.add('carousel-slide');
+            slide.setAttribute('data-id', survey.id);
+
+            // 处理 content 数据
+            let contentHTML = '';
+            if (survey.content.startsWith('[')) {
+              const contentArray = JSON.parse(survey.content);
+              contentHTML = contentArray
+                .map((item) => item.html)
+                .join('');
+            } else if (survey.content.startsWith('<')) {
+              contentHTML = survey.content;
+            } else {
+              contentHTML = `<p>${survey.content}</p>`;
+            }
+
+            slide.innerHTML = `
+          <h3 class="surveyTitle">${survey.title}</h3>
+          <p>创建时间：${new Date(survey.created_at).toLocaleString()}</p>
+          <ul class="survey-content">${contentHTML}</ul>
+        `;
+            carousel.appendChild(slide);
+          });
+
+          // 初始化轮播图
+          initCarousel();
+
+          initSort();
+        } else {
+          alert('获取问卷记录失败：' + result.message);
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+      }
+    }
+
+    //侧边栏卡片渲染函数
+    function renderSurveySidebar(surveys) {
+      const token = localStorage.getItem('token');
+      //侧边栏卡片列表
+      const cardList = document.getElementById('surveyCardList');
+      cardList.innerHTML = ''; // 清空
+
+      surveys.forEach((survey) => {
+        const card = document.createElement('div');
+        card.classList.add('survey-card');
+        card.setAttribute('data-id', survey.id);
+
+        // 简单内容摘要
+        const title = survey.title || '无标题';
+        const created = new Date(survey.created_at).toLocaleString();
+        const viewCount = survey.viewCount ?? 0;
+        const shareCount = survey.shareCount ?? 0;
+
+        card.innerHTML = `
+        <h3>${title}</h3>
+        <p>创建时间：${created}</p>
+        <p>浏览次数：${viewCount}</p>
+    <p>分享次数：${shareCount}</p>
+      `;
+
+        card.addEventListener('click', async () => {
+          try {
+            const response = await fetch('http://127.0.0.1:3007/survey/addviewCount', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${token}`,
+              },
+              body: JSON.stringify({ id: survey.id }),
+            });
+
+            const result = await response.json();
+            if (result.status !== 0) {
+              console.warn('更新浏览次数失败:', result.message);
+            }
+          } catch (error) {
+            console.error('调用更新浏览次数接口失败:', error);
+          }
+          addUserLog('点击问卷卡片', survey.id)
+          loading.in(`createSurvey.html?surveyId=${survey.id}`);// 显示加载动画
+        });
+
+        cardList.appendChild(card);
+      });
+    }
+
+    let sortByViewCount = localStorage.getItem('sortByViewCount') === 'true';
+
+    const sortBtn = document.getElementById('sortByViewCountBtn');
+
+    // 根据排序状态初始化按钮文字和渲染侧边栏
+    function initSort() {
+      if (sortByViewCount) {
+        sortBtn.textContent = '按创建时间排序';
+        const sortedSurveys = [...surveysData].sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0));
+        renderSurveySidebar(sortedSurveys);
+      } else {
+        sortBtn.textContent = '按浏览次数排序';
+        const sortedSurveys = [...surveysData].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        renderSurveySidebar(sortedSurveys);
+      }
+    }
+
+    // 点击按钮切换排序
+    sortBtn.addEventListener('click', () => {
+      sortByViewCount = !sortByViewCount;
+      localStorage.setItem('sortByViewCount', sortByViewCount.toString());
+      initSort();
+    });
+
+
+    // 初始化轮播图
+    function initCarousel() {
+      const token = localStorage.getItem('token'); // 获取 token
+      const carousel = document.getElementById('surveyCarousel');
+      const slides = carousel.querySelectorAll('.carousel-slide');
+      let currentIndex = 0;
+      let interval;
+
+      // 显示当前幻灯片
+      function showSlide(index) {
+        slides.forEach((slide, i) => {
+          slide.style.display = i === index ? 'block' : 'none';
+        });
+      }
+
+      // 开始轮播
+      function startCarousel() {
+        interval = setInterval(() => {
+          currentIndex = (currentIndex + 1) % slides.length;
+          showSlide(currentIndex);
+        }, 3000); // 每 3 秒切换一次
+      }
+
+      // 停止轮播
+      function stopCarousel() {
+        clearInterval(interval);
+      }
+
+      // 左右箭头按钮
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+
+      prevBtn.addEventListener('click', () => {
+        stopCarousel();
+        currentIndex = (currentIndex - 1 + slides.length) % slides.length;
+        showSlide(currentIndex);
+        startCarousel();
+      });
+
+      nextBtn.addEventListener('click', () => {
+        stopCarousel();
+        currentIndex = (currentIndex + 1) % slides.length;
+        showSlide(currentIndex);
+        startCarousel();
+      });
+
+      // 添加鼠标事件监听
+      carousel.addEventListener('mouseenter', stopCarousel); // 鼠标悬停时停止轮播
+      carousel.addEventListener('mouseleave', startCarousel); // 鼠标移开时继续轮播
+
+
+
+      // 显示第一张幻灯片
+      showSlide(currentIndex);
+      startCarousel();
+
+
+      function adjustCarouselHeight() {
+        const carousel = document.getElementById('surveyCarousel');
+        const currentHeight = carousel.scrollHeight;
+
+        if (currentHeight > 700) {
+          carousel.style.maxHeight = `700px`;
+          carousel.style.overflowY = 'auto'; // 添加滚动条
+        } else {
+          carousel.style.maxHeight = 'auto';
+          carousel.style.overflowY = 'visible'; // 无需滚动条
+        }
+      }
+
+      // 调用调整高度的函数
+      adjustCarouselHeight();
+
+      //添加点击跳转事件
+      carousel.addEventListener('click', async function () {
+        const currentSlide = slides[currentIndex];
+        const surveyId = currentSlide.getAttribute('data-id'); // 获取当前幻灯片的问卷ID
+        if (!surveyId) {
+          alert('未找到问卷ID，无法编辑！');
+          return;
+        }
+
+        try {
+          // 调用后端接口更新浏览次数
+          const response = await fetch('http://127.0.0.1:3007/survey/addviewCount', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `${token}`,
+            },
+            body: JSON.stringify({ id: surveyId }),
+          });
+
+          const result = await response.json();
+          if (result.status !== 0) {
+            console.warn('更新浏览次数失败:', result.message);
+          }
+        } catch (error) {
+          console.error('调用更新浏览次数接口失败:', error);
+        }
+
+        function saveToLocalStorage() {
+          const slides = carousel.querySelectorAll('.carousel-slide');
+
+          const surveyTitle = currentSlide.querySelector('.surveyTitle').innerHTML.trim();
+          const surveyContent = currentSlide.querySelector('.survey-content');
+          if (!surveyContent) return; // 如果没有内容，直接返回
+
+          const surveyItems = [...surveyContent.children].map((item) => {
+            const clonedItem = item.cloneNode(true); // 克隆节点
+            const deleteButton = clonedItem.querySelector('.delete-button');
+            if (deleteButton) {
+              deleteButton.remove(); // 移除删除按钮
+            }
+
+            // 提取组件样式
+            const styles = {
+              width: item.style.width || 'auto',
+              height: item.style.height || 'auto',
+              borderRadius: item.style.borderRadius || '5px',
+            };
+
+
+            // 提取组件内容
+            let content = '';
+            if (item.getAttribute('data-type') === 'introduction') {
+              content = item.querySelector('p')?.innerText || '';
+            } else if (item.getAttribute('data-type') === 'single-choice' || item.getAttribute('data-type') === 'multiple-choice') {
+              const question = item.querySelector('h3')?.innerText || '';
+              const options = [...item.querySelectorAll('.option span')].map((span) => span.innerText.trim());
+              content = { question, options };
+            } else if (item.getAttribute('data-type') === 'text') {
+              content = item.querySelector('h3')?.innerText || '';
+            } else if (item.getAttribute('data-type') === 'rating') {
+              content = item.querySelector('h3')?.innerText || '';
+            } else if (item.getAttribute('data-type') === 'date') {
+              content = item.querySelector('h3')?.innerText || '';
+            }
+
+            return {
+              html: clonedItem.outerHTML, // 保存组件的 HTML
+              styles, // 保存组件的样式
+              type: item.getAttribute('data-type'), // 保存组件类型
+              content, // 保存组件内容
+            };
+          });
+
+          const surveyData = {
+            title: surveyTitle,
+            content: surveyItems,
+          };
+
+          localStorage.setItem('savedSurvey', JSON.stringify(surveyData)); // 存储到 localStorage
+        }
+        saveToLocalStorage(); // 调用函数保存数据到 localStorage
+        addUserLog('点击轮播图查看问卷', surveyId)
+        loading.in(`createSurvey.html?surveyId=${surveyId}`);// 显示加载动画
+      });
+
+    }
+
+
+    //轮询新评论函数
+    async function pollNewCommentsCount() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch('http://127.0.0.1:3007/comment/getUserNewCommentsCount', {
+          headers: {
+            'Authorization': token,
+          },
+        });
+        const result = await res.json();
+        if (result.status !== 0) {
+          console.warn('获取新评论数失败:', result.message);
+          return;
+        }
+
+        // 计算所有问卷未读评论总数
+        const totalNewComments = result.data.reduce((sum, item) => sum + (item.newCommentsCount || 0), 0);
+
+        const dot = document.getElementById('newCommentDot');
+        if (totalNewComments > 0) {
+          dot.textContent = totalNewComments > 99 ? '99+' : totalNewComments;
+          dot.style.display = 'inline-block';
+        } else {
+          dot.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('轮询新评论数失败:', error);
+      }
+    }
+
+
+
+    // 获取并渲染用户日志
+    async function loadUserLogs() {
+      const token = localStorage.getItem('token');
+      const user_id = localStorage.getItem('user_id');
+      const logList = document.getElementById('logList');
+
+      if (!token || !user_id) {
+        logList.innerHTML = '<p>请先登录以查看日志。</p>';
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://127.0.0.1:3007/log/getUserLogs?user_id=${user_id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          }
+        });
+
+        const result = await response.json();
+
+        if (result.status === 0) {
+          const logs = result.data;
+          logs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          if (logs.length === 0) {
+            logList.innerHTML = '<p>暂无日志记录。</p>';
+            return;
+          }
+
+          // 获取所有唯一的问卷ID
+          const surveyIds = [...new Set(logs.filter(log => log.survey_id).map(log => log.survey_id))];
+
+          // 创建一个 Map 存储问卷ID对应的标题
+          const surveyTitleMap = new Map();
+
+          // 并行请求所有问卷标题
+          await Promise.all(surveyIds.map(async (id) => {
+            try {
+              const titleResponse = await fetch(`http://127.0.0.1:3007/survey/getSurveyTitle?survey_id=${id}`, {
+                headers: {
+                  'Authorization': token,
+                }
+              });
+              const titleResult = await titleResponse.json();
+              if (titleResult.status === 0) {
+                surveyTitleMap.set(id, titleResult.data.title || `问卷ID: ${id}`);
+              } else {
+                surveyTitleMap.set(id, `问卷ID: ${id}`);
+              }
+            } catch (e) {
+              surveyTitleMap.set(id, `问卷ID: ${id}`);
+            }
+          }));
+
+
+
+
+          // 清空之前内容
+          logList.innerHTML = '';
+
+          logs.forEach(log => {
+            const logItem = document.createElement('div');
+            logItem.classList.add('log-item');
+            // 格式化时间
+            const time = new Date(log.created_at).toLocaleString();
+
+            let surveyInfo = '';
+            if (log.survey_id) {
+              const title = surveyTitleMap.get(log.survey_id) || `问卷ID: ${log.survey_id}`;
+              surveyInfo = ` | 问卷名: ${title}`;
+            }
+            logItem.innerHTML = `
+          <p><strong>操作：</strong>${log.action}${surveyInfo}</p>
+          <p><small>时间：${time}</small></p>
+          <hr>
+        `;
+
+            logList.appendChild(logItem);
+          });
+        } else {
+          logList.innerHTML = `<p>获取日志失败：${result.message}</p>`;
+        }
+      } catch (error) {
+        console.error('请求日志失败:', error);
+        logList.innerHTML = '<p>加载日志时出错，请稍后重试。</p>';
+      }
+    }
+
+    // 在打开日志侧边栏时加载日志
+    openLogBtn.addEventListener('click', () => {
+      loadUserLogs();
+    });
+
+
+
+
+    // 页面加载完毕时检查手机号
+    window.onload = async function () {
+      const token = localStorage.getItem('token'); // 从 localStorage 获取 token
+      const loginTime = parseInt(localStorage.getItem('loginTime'), 10); // 确保 loginTime 是数字类型
+      const currentTime = new Date().getTime();
+
+      // 检查 token 是否存在以及是否过期
+      if (!token || !loginTime || currentTime - loginTime > 24 * 60 * 60 * 1000) {
+        // 如果 token 不存在或已过期
+        localStorage.removeItem('token'); // 移除 token
+        localStorage.removeItem('loginTime'); // 移除登录时间
+        alert('登录已过期，请重新登录！');
+        window.location.href = 'index.html'; // 跳转到登录页面
+      }
+
+      if (!token) {
+        alert('未登录，请先登录！');
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // 如果 token 存在，隐藏过渡动画
+      document.querySelector('.loading p').innerHTML = '加载中...'; // 更新加载文本
+      setTimeout(() => {
+        loading.out(); // 隐藏过渡动画
+      }, 500);
+      try {
+        // 发送请求获取用户信息
+        const response = await fetch('http://127.0.0.1:3007/my/userinfo', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `${token}`,
+          },
+        });
+
+        const userResult = await response.json();
+
+
+        if (userResult.status === 0) {
+          // 设置用户名
+          document.getElementById('username').innerHTML = userResult.data.username;
+          // 设置简介
+          document.getElementById('userIntro').innerHTML = '简介：<br>' + userResult.data.introduction;
+          // 设置头像
+          document.querySelector('.avatar').src = userResult.data.user_pic || '../images/默认头像.png';
+        } else {
+          alert('获取用户信息失败：' + userResult.message);
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+      }
+
+      //加载问卷记录
+      await loadUserSurveys();
+
+      try {
+        // 发送 GET 请求到后端
+        const response = await fetch('http://127.0.0.1:3007/my/getPhoneNumber', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `${token}`, // 在请求头中附加 token
+          },
+        });
+        const result = await response.json();
+
+        if (result.data === 'unknown') {
+          document.getElementById('modalOverlay').style.display = 'block';
+          document.getElementById('bindPhoneModal').style.display = 'block';
+        } else if (result.status !== 0) {
+          alert('获取手机号失败：' + result.message);
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+      }
+
+      // 启动轮询，每30秒请求一次
+      pollNewCommentsCount();
+      setInterval(pollNewCommentsCount, 30000);
+    };
+
+
+
+
+    // 发送验证码按钮点击事件
+    document.getElementById('sendCodeButton').addEventListener('click', async function () {
+      const phoneInput = document.getElementById('phoneInput').value;
+      const sendCodeButton = document.getElementById('sendCodeButton');
+
+      if (!phoneInput) {
+        alert('请输入手机号！');
+        return;
+      }
+
+      // 检查按钮是否已禁用
+      if (sendCodeButton.disabled) {
+        alert('请稍后再试，验证码发送间隔为 60 秒！');
+        return;
+      }
+
+      try {
+        // 发送验证码请求到后端
+        const response = await fetch('http://127.0.0.1:3007/api/sendCode', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phone_number: phoneInput }),
+        });
+
+        const result = await response.json();
+
+        if (result.status === 0) {
+          alert('验证码已发送，请检查手机！');
+          // 将验证码存储到 localStorage
+          localStorage.setItem('sms_code', result.code);
+          // 禁用按钮 60 秒
+          sendCodeButton.disabled = true;
+          let countdown = 60;
+          const originalText = sendCodeButton.textContent;
+
+          const interval = setInterval(() => {
+            countdown--;
+            sendCodeButton.textContent = `请稍后 (${countdown}s)`;
+
+            if (countdown <= 0) {
+              clearInterval(interval);
+              sendCodeButton.disabled = false;
+              sendCodeButton.textContent = originalText;
+            }
+          }, 1000); // 每秒更新一次
+        } else {
+          alert('发送验证码失败：' + result.message);
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+      }
+    });
+
+    // 绑定手机号按钮点击事件
+    document.getElementById('bindPhoneButton').addEventListener('click', async function () {
+      const phoneInput = document.getElementById('phoneInput').value;
+      const verificationCode = document.getElementById('verificationCodeInput').value;
+      const token = localStorage.getItem('token'); // 从 localStorage 获取 token
+      if (!phoneInput) {
+        alert('请输入手机号！');
+        return;
+      }
+
+      if (!verificationCode) {
+        alert('请输入验证码！');
+        return;
+      }
+
+      // 从 localStorage 获取验证码
+      const storedCode = localStorage.getItem('sms_code');
+
+      // 验证验证码是否正确
+      if (verificationCode !== storedCode) {
+        alert('验证码错误！');
+        return;
+      }
+
+      try {
+        // 将数据转换为 URL 编码格式
+        const formData = new URLSearchParams();
+        formData.append('phone_number', phoneInput);
+
+        // 发送 POST 请求到后端绑定手机号
+        const response = await fetch('http://127.0.0.1:3007/my/bindPhoneNumber', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `${token}`,
+          },
+          body: formData.toString(), // 使用 URL 编码格式发送数据
+        });
+
+        const result = await response.json();
+
+        if (result.status === 0) {
+          alert('手机号绑定成功！');
+          addUserLog('绑定手机号');
+          // 隐藏浮窗
+          document.getElementById('modalOverlay').style.display = 'none';
+          document.getElementById('bindPhoneModal').style.display = 'none';
+        } else {
+          alert('绑定失败：' + result.message);
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+      }
+    });
+
+
+
+    //封装addUserLog函数用以调用增加日志接口
+    async function addUserLog(action, surveyId = null) {
+      const token = localStorage.getItem('token');
+      const user_id = localStorage.getItem('user_id');
+
+      if (!token || !user_id) return;
+
+      const logData = {
+        user_id,
+        action,
+        survey_id: surveyId,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const response = await fetch('http://127.0.0.1:3007/log/addLog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify(logData),
+        });
+
+        const result = await response.json();
+        if (result.status !== 0) {
+          console.warn('添加日志失败:', result.message);
+        }
+      } catch (error) {
+        console.error('调用添加日志接口失败:', error);
+      }
+    }
+
+  </script>
+
+  <script>
+    async function addUserLog(action, surveyId = null) {
+      const token = localStorage.getItem('token');
+      const user_id = localStorage.getItem('user_id');
+
+      if (!token || !user_id) return;
+
+      const logData = {
+        user_id,
+        action,
+        survey_id: surveyId,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const response = await fetch('http://127.0.0.1:3007/log/addLog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify(logData),
+        });
+
+        const result = await response.json();
+        if (result.status !== 0) {
+          console.warn('添加日志失败:', result.message);
+        }
+      } catch (error) {
+        console.error('调用添加日志接口失败:', error);
+      }
+    }
+
+    // 问卷侧边栏按钮点击事件
+    const sidebar = document.getElementById('surveySidebar');
+    const openBtn = document.getElementById('openSidebarBtn');
+    const closeBtn = document.getElementById('closeSidebarBtn');
+
+    openBtn.addEventListener('click', () => {
+      sidebar.classList.add('show');
+      openBtn.style.display = 'none';
+    });
+
+    closeBtn.addEventListener('click', () => {
+      sidebar.classList.remove('show');
+      openBtn.style.display = 'block';
+    });
+
+    //日志侧边栏点击事件
+    const logSidebar = document.getElementById('logSidebar');
+    const openLogBtn = document.getElementById('openLogSidebarBtn');
+    const closeLogBtn = document.getElementById('closeLogSidebarBtn');
+
+    openLogBtn.addEventListener('click', () => {
+      logSidebar.classList.add('show');
+      openLogBtn.style.display = 'none';
+    });
+
+    closeLogBtn.addEventListener('click', () => {
+      logSidebar.classList.remove('show');
+      openLogBtn.style.display = 'block';
+    });
+
+
+    // 创建问卷按钮点击事件
+    document.getElementById('createSurveyButton').addEventListener('click', function () {
+      addUserLog('创建问卷')
+      document.querySelector('.loading p').innerHTML = '创建问卷...'; // 更新加载文本
+      loading.in('createSurvey.html');// 显示加载动画
+    });
+
+
+    //过渡动画对象
+    const loading = {
+      container: document.querySelector('.loading'),
+      in(target) {
+
+        this.container.classList.remove('loading-out');
+        setTimeout(() => {
+          window.location.href = target;
+        }, 1000);
+      },
+      out() {
+        this.container.classList.add('loading-out');
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const token = localStorage.getItem('token'); // 获取 token
+      if (token) {
+        document.querySelector('.loading p').innerHTML = '返回中...'; // 更新加载文本
+        setTimeout(() => {
+          loading.out();
+        }, 500);
+      }
+    })
+
+    document.querySelector('.profile-link').addEventListener('click', function (event) {
+      event.preventDefault(); // 阻止默认跳转行为
+      document.querySelector('.loading p').innerHTML = '加载个人中心...'; // 更新加载文本
+      loading.in('perCenter.html'); // 显示加载动画
+    });
+
+
+
+  </script>
+
+</body>
+
+</html>

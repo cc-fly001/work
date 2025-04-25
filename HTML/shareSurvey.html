@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>问卷分享</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      background: #ddd;
+      padding: 1rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      background: white;
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+      width: auto;
+      height: auto;
+      border-radius: 10px;
+      background-color: #f0f0f0;
+    }
+
+    /* 禁用所有输入框 */
+    input,
+    textarea,
+    button {
+      pointer-events: none;
+      user-select: none;
+    }
+
+    button {
+      display: none;
+      /* 隐藏按钮 */
+    }
+  </style>
+</head>
+
+<body>
+  <h1 id="surveyTitle">加载中...</h1>
+  <ul id="surveyContent"></ul>
+
+  <script>
+    // Base64 URL 解码
+    function base64UrlDecode(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (str.length % 4) {
+        str += '=';
+      }
+      return decodeURIComponent(escape(atob(str)));
+    }
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function renderSurvey(data) {
+      const titleEl = document.getElementById('surveyTitle');
+      const contentEl = document.getElementById('surveyContent');
+
+      titleEl.textContent = data.title || '无标题问卷';
+
+      data.content.forEach(item => {
+        const li = document.createElement('li');
+        li.innerHTML = item.html;
+
+
+        // 禁用所有输入和编辑功能
+        li.querySelectorAll('input, textarea, button, [contenteditable]').forEach(el => {
+          el.disabled = true;
+          el.contentEditable = false;
+          if (el.tagName === 'BUTTON') el.style.display = 'none';
+        });
+
+        contentEl.appendChild(li);
+      });
+    }
+
+    window.onload = () => {
+      const shareDataEncoded = getQueryParam('shareData');
+      if (!shareDataEncoded) {
+        alert('未检测到分享数据');
+        return;
+      }
+      try {
+        const jsonStr = base64UrlDecode(shareDataEncoded);
+        const data = JSON.parse(jsonStr);
+        renderSurvey(data);
+      } catch (e) {
+        alert('解析分享数据失败');
+        console.error(e);
+      }
+    };
+  </script>
+</body>
+
+</html>

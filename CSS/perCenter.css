@@ -1,0 +1,286 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* 页面整体样式 */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
+  color: #333;
+  height: 100vh;
+}
+
+
+/* 页面过渡动画 */
+.loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  transform: translateY(0);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  background-color: rgb(0, 0, 0);
+  transition: all 1s ease;
+  opacity: 1;
+}
+
+.loading svg {
+  width: 5rem;
+  height: 5rem;
+  opacity: 1;
+  margin-bottom: 1.5rem;
+  animation: rotate 2s linear infinite;
+  /* 添加旋转动画 */
+}
+
+.loading svg circle {
+  fill: none;
+  stroke: #00d1ff;
+  /* 改为亮蓝色 */
+  stroke-width: 4px;
+  stroke-linecap: round;
+  stroke-dasharray: 150;
+  /* 定义虚线长度 */
+  stroke-dashoffset: 0;
+  animation: dash 1.5s ease-in-out infinite;
+  /* 添加虚线动画 */
+}
+
+.loading p {
+  color: #fff;
+  opacity: 1;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* 旋转动画 */
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-out {
+  transform: translateY(100%);
+  opacity: 0;
+  transition: all 1s;
+}
+
+.loading-out svg,
+.loading-out p {
+  opacity: 0;
+  transition: 1s all;
+}
+
+/* 包裹容器样式 */
+.wrapper {
+  background-color: #fff;
+  width: 90%;
+  max-width: 800px;
+  padding: 20px;
+  margin: 0 auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  position: relative;
+}
+
+
+/* 返回按钮样式 */
+.wrapper a {
+  display: inline-block;
+  text-decoration: none;
+  font-size: 30px;
+  color: black;
+  cursor: pointer;
+  margin-bottom: 10px;
+  position: absolute;
+  top: 20px;
+  left: 20px;
+}
+
+.wrapper a:hover {
+  color: #007bff;
+}
+
+/* 标题样式 */
+.wrapper h2 {
+  margin: 10px 0 20px;
+  font-size: 30px;
+  color: #333;
+}
+
+/* 用户信息列表样式 */
+.user-info {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.user-info li:not(:first-child) {
+  margin: 10px 0;
+  font-size: 16px;
+  font-weight: 700;
+  min-height: 50px;
+  height: auto;
+  color: #555;
+  text-align: left;
+  padding: 10px 0 20px 15px;
+  border-bottom: 1px solid #eaeaea;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.user-info li span {
+  font-weight: 400;
+  color: #777;
+}
+
+/* 头像样式 */
+.avatarcontain {
+  margin-bottom: 20px;
+  border-bottom: none;
+  padding-bottom: 0;
+  text-align: left;
+}
+
+#avatarContainer {
+  height: 110px;
+  width: 110px;
+}
+
+.avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid #007bff;
+}
+
+/* 登出按钮样式 */
+#logoutButton {
+  margin-top: 100px;
+  padding: 10px 50px;
+  font-size: 16px;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#logoutButton:hover {
+  background-color: #0056b3;
+}
+
+/* 修改按钮样式 */
+.edit-button {
+  width: 100px;
+  height: 30px;
+  font-size: 16px;
+  margin-top: 30px;
+  color: black;
+  background-color: whitesmoke;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.edit-button:hover {
+  background-color: skyblue;
+}
+
+/* 浮窗背景样式 */
+.modal {
+  display: none;
+  /* 默认隐藏 */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  /* 半透明背景 */
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 浮窗内容样式 */
+.modal-content {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+}
+
+/* 标题样式 */
+.modal-content h3 {
+  margin-bottom: 15px;
+  font-size: 20px;
+  color: #333;
+}
+
+/* 输入框样式 */
+#newIntroInput {
+  width: 90%;
+  height: 80px;
+  margin-bottom: 15px;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  resize: none;
+}
+
+/* 按钮容器样式 */
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* 按钮样式 */
+.modal-button {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.modal-button:hover {
+  background-color: #0056b3;
+}
+
+/* 取消按钮样式 */
+.modal-button.cancel {
+  background-color: #6c757d;
+}
+
+.modal-button.cancel:hover {
+  background-color: #5a6268;
+}

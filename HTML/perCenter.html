@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人中心</title>
+  <link rel="stylesheet" href="../CSS/perCenter.css">
+</head>
+
+<body>
+  <div class="wrapper">
+
+    <a href="app.html">&lt;</a>
+    <h2>个人中心</h2>
+
+    <ul class="user-info">
+      <li class="avatarcontain">
+        <div id="avatarContainer"><img src="../images/默认头像.png" alt="头像" class="avatar" id="userAvatar"></div>
+      </li>
+      <li id="username">
+        <label>用户名</label>
+        <span id="usernameValue">用户名</span>
+      </li>
+      <li id="phoneNumber">
+        <label>手机号</label>
+        <span id="phoneNumberValue">手机号</span>
+      </li>
+      <li id="userIntro"><label>简介</label>
+        <span id="userIntroValue">这里是用户简介</span>
+        <button id="editIntroButton" class="edit-button">修改简介</button>
+      </li>
+      <li id="userEmail"><label>邮箱</label>
+        <span id="userEmailValue">这里是用户邮箱</span>
+        <button id="editEmailButton" class="edit-button">修改邮箱</button>
+      </li>
+    </ul>
+    <button id="logoutButton">登出</button>
+  </div>
+
+  <!-- 修改简介浮窗 -->
+  <div id="editIntroModal" class="modal">
+    <div class="modal-content">
+      <h3>修改简介</h3>
+      <textarea id="newIntroInput" placeholder="请输入新的简介"></textarea>
+      <div class="modal-actions">
+        <button id="saveIntroButton" class="modal-button">保存</button>
+        <button id="cancelIntroButton" class="modal-button cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页面过渡效果 -->
+  <div class="loading">
+    <svg viewBox="0 0 50 50">
+      <circle r="25" cx="25" cy="25" />
+    </svg>
+    <p>加载个人中心...</p>
+  </div>
+
+
+
+  <!-- 获取用户信息 -->
+  <script>
+    window.onload = async function () {
+      const token = localStorage.getItem('token'); // 从 localStorage 获取 token
+      const loginTime = parseInt(localStorage.getItem('loginTime'), 10); // 确保 loginTime 是数字类型
+      const currentTime = new Date().getTime();
+
+      // 检查 token 是否存在以及是否过期
+      if (!token || !loginTime || currentTime - loginTime > 24 * 60 * 60 * 1000) {
+        // 如果 token 不存在或已过期
+        localStorage.removeItem('token'); // 移除 token
+        localStorage.removeItem('loginTime'); // 移除登录时间
+        alert('登录已过期，请重新登录！');
+        window.location.href = 'index.html'; // 跳转到登录页面
+      }
+
+      if (!token) {
+        alert('未登录，请先登录！');
+        window.location.href = 'index.html';
+        return;
+      }
+      try {
+        // 发送 GET 请求到后端
+        const response = await fetch('http://127.0.0.1:3007/my/userinfo', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `${token}`, // 在请求头中附加 token
+          },
+        });
+        const result = await response.json();
+        if (response.ok) {
+          // 更新页面上的用户信息
+          document.getElementById('usernameValue').textContent = result.data.username;
+          document.getElementById('phoneNumberValue').textContent = result.data.phone_number || '未绑定';
+          document.getElementById('userIntroValue').innerHTML = result.data.introduction
+          document.getElementById('userEmailValue').textContent = result.data.email;
+          document.getElementById('userAvatar').src = result.data.user_pic || '../images/默认头像.png';
+        } else {
+          alert(result.message || '获取用户信息失败！');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('获取用户信息失败！');
+      }
+    }
+    // 修改简介按钮点击事件
+    // 显示浮窗
+    document.getElementById('editIntroButton').addEventListener('click', function () {
+      const currentIntro = document.getElementById('userIntroValue')
+      document.getElementById('newIntroInput').value = currentIntro.innerHTML.replace(/<br\s*\/?>/g, '\n'); // 设置当前简介为默认值
+      document.getElementById('editIntroModal').style.display = 'flex'; // 显示浮窗
+    });
+
+    // 隐藏浮窗
+    document.getElementById('cancelIntroButton').addEventListener('click', function () {
+      document.getElementById('editIntroModal').style.display = 'none'; // 隐藏浮窗
+    });
+
+    // 保存新的简介
+    document.getElementById('saveIntroButton').addEventListener('click', async function () {
+      let newIntro = document.getElementById('newIntroInput').value.trim();
+
+      if (!newIntro) {
+        alert('简介不能为空！');
+        return;
+      }
+
+      newIntro = newIntro.replace(/<[^>]*>/g, ''); // 去除 HTML 标签
+      newIntro = newIntro.replace(/&nbsp;/g, ''); // 去除空格
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://127.0.0.1:3007/my/update/introduction', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `${token}`,
+          },
+          body: JSON.stringify({ introduction: newIntro.replace(/\n/g, '<br>') }),
+        });
+
+        const result = await response.json();
+
+        if (result.status === 0) {
+          addUserLog('用户修改简介')
+          alert('简介修改成功！');
+          document.getElementById('userIntroValue').innerHTML = newIntro.replace(/\n/g, '<br>'); // 更新页面上的简介
+          document.getElementById('editIntroModal').style.display = 'none'; // 隐藏浮窗
+        } else {
+          alert('简介修改失败：' + result.message);
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+        alert('简介修改失败，请稍后再试！');
+      }
+    });
+
+    // 修改邮箱按钮点击事件
+    document.getElementById('editEmailButton').addEventListener('click', async function () {
+      // 弹出输入框，获取新邮箱
+      const newEmail = prompt('请输入新的邮箱地址：', document.getElementById('userEmailValue').textContent);
+
+      // 如果用户取消输入或输入为空
+      if (newEmail === null || newEmail.trim() === '') {
+        alert('邮箱不能为空！');
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token'); // 从 localStorage 获取 token
+        const response = await fetch('http://127.0.0.1:3007/my/update/email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `${token}`,
+          },
+          body: JSON.stringify({ email: newEmail.trim() }), // 发送新邮箱
+        });
+
+        const result = await response.json();
+
+        if (result.status === 0) {
+          addUserLog('用户修改邮箱')
+          alert('邮箱修改成功！');
+          document.getElementById('userEmailValue').innerHTML = newEmail.trim(); // 更新页面上的邮箱
+        } else {
+          alert('邮箱修改失败：' + result.message);
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+        alert('邮箱修改失败，请稍后再试！');
+      }
+    });
+
+
+    // 登出按钮点击事件
+    document.getElementById('logoutButton').addEventListener('click', function () {
+      const confirmation = confirm('确定要登出吗？');
+      if (!confirmation) return; // 用户取消登出
+      addUserLog('用户登出')
+      // 清除 token 和用户信息
+      localStorage.removeItem('token');
+      localStorage.removeItem('loginTime');
+      localStorage.removeItem('sms_code');
+      localStorage.removeItem('recycleBinData');
+      localStorage.removeItem('savedSurvey');
+      alert('登出成功！');
+      window.location.href = 'index.html'; // 跳转到登录页面
+    });
+
+
+
+    // 监听头像容器的点击事件
+    document.getElementById('avatarContainer').addEventListener('click', function () {
+      // 创建一个隐藏的文件选择器
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*'; // 仅允许选择图片文件
+
+      // 监听文件选择事件
+      fileInput.addEventListener('change', async function (event) {
+        const file = event.target.files[0]; // 获取用户选择的文件
+
+        if (!file) {
+          alert('请选择一个图片文件！');
+          return;
+        }
+
+        // 检查文件类型
+        if (!file.type.startsWith('image/')) {
+          alert('请选择有效的图片文件！');
+          return;
+        }
+
+        // 将图片文件转换为 Base64 格式
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+          const base64Image = e.target.result; // 获取 Base64 格式的图片数据
+
+          try {
+            const token = localStorage.getItem('token'); // 从 localStorage 获取 token
+            const response = await fetch('http://127.0.0.1:3007/my/update/avatar', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${token}`,
+              },
+              body: JSON.stringify({ user_pic: base64Image }), // 发送 Base64 格式的图片数据
+            });
+
+            const result = await response.json();
+
+            if (result.status === 0) {
+              addUserLog('上传新头像')
+              alert('头像上传成功！');
+              document.getElementById('userAvatar').src = base64Image; // 更新页面上的头像
+            } else {
+              alert('头像上传失败：' + result.message);
+            }
+          } catch (error) {
+            console.error('请求失败:', error);
+            alert('头像上传失败，请稍后再试！');
+          }
+        };
+
+        reader.readAsDataURL(file); // 读取文件并触发 `onload` 事件
+      });
+
+      // 触发文件选择器
+      fileInput.click();
+    });
+
+    //封装addUserLog函数用以调用增加日志接口
+    async function addUserLog(action, surveyId = null) {
+      const token = localStorage.getItem('token');
+      const user_id = localStorage.getItem('user_id');
+
+      if (!token || !user_id) return;
+
+      const logData = {
+        user_id,
+        action,
+        survey_id: surveyId,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const response = await fetch('http://127.0.0.1:3007/log/addLog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify(logData),
+        });
+
+        const result = await response.json();
+        if (result.status !== 0) {
+          console.warn('添加日志失败:', result.message);
+        }
+      } catch (error) {
+        console.error('调用添加日志接口失败:', error);
+      }
+    }
+  </script>
+
+  <script>
+    //过渡动画对象
+    const loading = {
+      container: document.querySelector('.loading'),
+      in(target) {
+        this.container.classList.remove('loading-out');
+        setTimeout(() => {
+          window.location.href = target;
+        }, 1000);
+      },
+      out() {
+        this.container.classList.add('loading-out');
+      }
+    }
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(() => {
+        loading.out();
+      }, 500);
+    })
+
+    // 为返回箭头绑定点击事件
+    document.querySelector('.wrapper a').addEventListener('click', function (event) {
+      event.preventDefault(); // 阻止默认跳转行为
+      document.querySelector('.loading p').innerHTML = '加载中...'; // 更新加载文本
+      loading.in('app.html'); // 显示加载动画并跳转
+    });
+
+  </script>
+
+</body>
+
+
+
+</html>

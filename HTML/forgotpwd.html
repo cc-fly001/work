@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>忘记密码</title>
+  <link rel="stylesheet" href="../CSS/index_signup_forgotpwd.css">
+</head>
+
+<body>
+  <div class="blob">
+    <div class="wrapper">
+      <form action="" id="forgotPwdForm">
+        <h2>忘记密码</h2>
+        <div class="input-box">
+          <input type="text" id="phoneNumber" required>
+          <label>手机号码</label>
+        </div>
+        <button type="button" id="sendCodeButton">发送验证码</button>
+        <div class="input-box">
+          <input type="text" id="verificationCode" required>
+          <label>验证码</label>
+        </div>
+        <div class="input-box">
+          <input type="password" id="newPassword" required>
+          <label>重置密码</label>
+        </div>
+        <div class="input-box">
+          <input type="password" id="confirmPassword" required>
+          <label>确认密码</label>
+        </div>
+        <button type="submit">重置密码</button>
+        <div class="register-link">
+          <p>还没有账号？<a href="signup.html">点击注册</a></p>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <script>
+    //密码简单加密
+    function simpleEncrypt(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    // 获取表单元素
+    const forgotPwdForm = document.getElementById('forgotPwdForm');
+    const sendCodeButton = document.getElementById('sendCodeButton');
+
+    // 发送验证码按钮点击事件
+    sendCodeButton.addEventListener('click', async function () {
+      const phoneNumber = document.getElementById('phoneNumber').value;
+
+      // 验证手机号是否为空
+      if (!phoneNumber) {
+        alert('请输入手机号！');
+        return;
+      }
+
+      // 禁用按钮并设置倒计时
+      sendCodeButton.disabled = true; // 禁用按钮
+      let countdown = 60;
+      sendCodeButton.textContent = `重新发送 (${countdown}s)`;
+
+      const timer = setInterval(() => {
+        countdown--;
+        sendCodeButton.textContent = `重新发送 (${countdown}s)`;
+        if (countdown <= 0) {
+          clearInterval(timer);
+          sendCodeButton.disabled = false; // 启用按钮
+          sendCodeButton.textContent = '发送验证码';
+        }
+      }, 1000);
+
+      try {
+        // 发送验证码请求到后端
+        const response = await fetch('http://127.0.0.1:3007/api/sendCode', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phone_number: phoneNumber }),
+        });
+
+        const result = await response.json();
+
+        if (result.status === 0) {
+          alert('验证码已发送，请检查手机！');
+          // 将验证码存储到 localStorage
+          localStorage.setItem('sms_code', result.code);
+        } else {
+          alert('发送验证码失败：' + result.message);
+          clearInterval(timer); // 停止倒计时
+          sendCodeButton.disabled = false; // 启用按钮
+          sendCodeButton.textContent = '发送验证码';
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+        alert('请求失败，请检查网络连接！');
+        clearInterval(timer); // 停止倒计时
+        sendCodeButton.disabled = false; // 启用按钮
+        sendCodeButton.textContent = '发送验证码';
+      }
+    });
+
+    // 表单提交事件
+    forgotPwdForm.addEventListener('submit', async function (event) {
+      event.preventDefault(); // 阻止表单默认提交行为
+
+      // 获取用户输入的值
+      const phoneNumber = document.getElementById('phoneNumber').value;
+      const verificationCode = document.getElementById('verificationCode').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      // 验证密码是否一致
+      if (newPassword !== confirmPassword) {
+        alert('两次输入的密码不一致！');
+        return;
+      }
+
+      // 从 localStorage 获取验证码
+      const storedCode = localStorage.getItem('sms_code');
+      if (!storedCode) {
+        alert('请先发送验证码！');
+        return;
+      }
+
+      if (verificationCode !== storedCode) {
+        alert('验证码错误！');
+        return;
+      }
+
+      const encryptedPassword = simpleEncrypt(newPassword);
+
+      try {
+        // 发送重置密码请求到后端
+        const response = await fetch('http://127.0.0.1:3007/api/resetPassword', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phone_number: phoneNumber,
+            code: verificationCode,
+            newPassword: encryptedPassword,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.status === 0) {
+          addUserLog('重置密码')
+          alert('密码重置成功！');
+          window.location.href = 'index.html'; // 跳转到登录页面
+        } else {
+          alert('密码重置失败：' + result.message);
+        }
+      } catch (error) {
+        console.error('请求失败:', error);
+        alert('请求失败，请检查网络连接！');
+      }
+    });
+
+
+    //封装addUserLog函数用以调用增加日志接口
+    async function addUserLog(action, surveyId = null) {
+      const token = localStorage.getItem('token');
+      const user_id = localStorage.getItem('user_id');
+
+      if (!token || !user_id) return;
+
+      const logData = {
+        user_id,
+        action,
+        survey_id: surveyId,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const response = await fetch('http://127.0.0.1:3007/log/addLog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify(logData),
+        });
+
+        const result = await response.json();
+        if (result.status !== 0) {
+          console.warn('添加日志失败:', result.message);
+        }
+      } catch (error) {
+        console.error('调用添加日志接口失败:', error);
+      }
+    }
+  </script>
+</body>
+
+</html>

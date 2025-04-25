@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>共享大厅</title>
+  <link rel="stylesheet" href="../CSS/sharePlatform.css">
+</head>
+
+<body>
+  <h1>共享大厅 - 已推送问卷</h1>
+
+  <button id="homeBtn" class="home-button">返回首页</button>
+
+  <div id="cardContainer" class="card-container">
+    <!-- 动态生成卡片 -->
+  </div>
+
+  <script>
+    async function loadSharedSurveys() {
+      try {
+        const token = localStorage.getItem('token') || '';
+        const response = await fetch('http://127.0.0.1:3007/survey/listShared', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+        });
+
+        const result = await response.json();
+        if (result.status !== 0) {
+          alert('获取共享问卷失败：' + result.message);
+          return;
+        }
+
+        const surveys = result.data;
+
+        //获取当前用户所有问卷的未读评论数
+        const unreadRes = await fetch('http://127.0.0.1:3007/comment/getUserNewCommentsCount', {
+          headers: {
+            'Authorization': token,
+          },
+        });
+        const unreadResult = await unreadRes.json();
+        if (unreadResult.status !== 0) {
+          console.warn('获取未读评论数失败:', unreadResult.message);
+        }
+        const unreadMap = new Map();
+        if (unreadResult.status === 0 && Array.isArray(unreadResult.data)) {
+          unreadResult.data.forEach(item => {
+            unreadMap.set(item.surveyId, item.newCommentsCount);
+          });
+        }
+
+
+
+        const container = document.getElementById('cardContainer');
+        container.innerHTML = '';
+
+        if (surveys.length === 0) {
+          container.innerHTML = '<p>暂无已推送的问卷。</p>';
+          return;
+        }
+
+        surveys.forEach((survey) => {
+
+          const card = document.createElement('div');
+          card.className = 'survey-card';
+
+          card.innerHTML = `
+            <div class="survey-title">${survey.title || '无标题'}</div>
+            <div class="survey-info">发布者：${survey.ownerName || '未知'}</div>
+            <div class="survey-info">创建时间：${new Date(survey.created_at).toLocaleString()}</div>
+            <div class="survey-info">浏览次数：${survey.viewCount || 0}</div>
+            <div class="survey-info">分享次数：${survey.shareCount || 0}</div>
+             <div class="unread-dot" style="display:none; position:absolute; top:10px; right:10px; background:red; color:white; border-radius:50%; padding:2px 6px; font-size:0.75rem; user-select:none;"></div>
+          `;
+
+          // 显示未读评论数红点（仅显示自己发布的问卷的未读数）
+          const unreadCount = unreadMap.get(survey.id) || 0;
+          if (unreadCount > 0) {
+            const dot = card.querySelector('.unread-dot');
+            dot.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            dot.style.display = 'inline-block';
+          }
+
+          // 点击卡片跳转到问卷详情
+          card.addEventListener('click', async () => {
+            addUserLog('共享大厅点击卡片', survey.id)
+            window.location.href = `sharedSurveyDetail.html?surveyId=${survey.id}`;
+          })
+
+          container.appendChild(card);
+        })
+      } catch (error) {
+        console.error('加载共享问卷失败:', error);
+        alert('加载共享问卷失败，请稍后重试。');
+      }
+    }
+
+    //返回按钮点击事件
+    document.getElementById('homeBtn').addEventListener('click', () => {
+      window.location.href = 'app.html';
+    });
+
+    window.onload = loadSharedSurveys;
+
+    //封装addUserLog函数用以调用增加日志接口
+    async function addUserLog(action, surveyId = null) {
+      const token = localStorage.getItem('token');
+      const user_id = localStorage.getItem('user_id');
+
+      if (!token || !user_id) return;
+
+      const logData = {
+        user_id,
+        action,
+        survey_id: surveyId,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const response = await fetch('http://127.0.0.1:3007/log/addLog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify(logData),
+        });
+
+        const result = await response.json();
+        if (result.status !== 0) {
+          console.warn('添加日志失败:', result.message);
+        }
+      } catch (error) {
+        console.error('调用添加日志接口失败:', error);
+      }
+    }
+  </script>
+</body>
+
+</html>

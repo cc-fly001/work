@@ -1,0 +1,146 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #1f1f47;
+  overflow: hidden;
+}
+
+.wrapper {
+  position: relative;
+  width: 450px;
+  height: 600px;
+  background-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+h2 {
+  font-size: 2em;
+  color: #fff;
+  text-align: center;
+}
+
+.input-box {
+  position: relative;
+  width: 350px;
+  margin: 30px 0;
+  border-bottom: 2px solid #fff;
+}
+
+
+
+.input-box input {
+  width: 100%;
+  height: 50px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 1em;
+  color: #fff;
+  padding: 15px 35px 0 5px;
+  caret-color: #fff;
+}
+
+/* 针对自动填充的输入框，保持原有样式 */
+input:-webkit-autofill {
+  -webkit-text-fill-color: #fff;
+  /* 文本颜色 */
+  font-family: inherit;
+  /* 保持字体样式 */
+  font-size: inherit;
+  /* 保持字体大小 */
+  transition: background-color 5000s ease-in-out 0s;
+  /* 防止背景颜色闪烁 */
+}
+
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px rgba(255, 255, 255, 0.001) inset;
+  /* 保持背景透明 */
+  -webkit-text-fill-color: #fff;
+  /* 文本颜色 */
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.input-box label {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  transform: translateY(-50%);
+  font-size: 1em;
+  color: #fff;
+  pointer-events: none;
+}
+
+.input-box input:focus~label,
+.input-box input:valid~label {
+  top: 5px;
+}
+
+
+.remeber-forgot {
+  margin: -15px 0 15px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9em;
+  color: #fff;
+}
+
+.remeber-forgot a {
+  color: #fff;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.remeber-forgot a:hover {
+  text-decoration: underline;
+}
+
+.remeber-forgot label input {
+  accent-color: #fa709a;
+  margin-right: 3px;
+  cursor: pointer;
+}
+
+button {
+  width: 100%;
+  height: 45px;
+  background-color: #fa709a;
+  border: none;
+  outline: none;
+  border-radius: 40px;
+  font-size: 1rm;
+  color: #fff;
+  font-weight: 500;
+}
+
+.register-link {
+  font-size: 0.9em;
+  color: #fff;
+  text-align: center;
+  margin: 25px 0 10px;
+}
+
+.register-link a {
+  color: #fff;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.register-link a:hover {
+  text-decoration: underline;
+}

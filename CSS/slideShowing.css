@@ -1,0 +1,249 @@
+/* 轮播图容器 */
+#surveyCarousel {
+  position: relative;
+  width: 70%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+}
+
+.slideShowing {
+  max-height: 600px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  opacity: 1;
+}
+
+/* 每个幻灯片 */
+.carousel-slide {
+  display: none;
+  text-align: center;
+  padding: 20px;
+}
+
+.carousel-slide h3 {
+  margin: 0;
+  font-size: 1.5em;
+}
+
+.carousel-slide p {
+  margin: 10px 0;
+  color: #666;
+}
+
+.carousel-slide button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.carousel-slide button:hover {
+  background-color: #0056b3;
+}
+
+/* 单选题以及多选题 */
+.single-choice-component {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background-color: #fff;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 40px;
+  background-color: whitesmoke;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+
+.option-input {
+  flex: 250%;
+  display: flex;
+  padding: 5px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.add-option-button {
+  margin-top: 10px;
+  padding: 5px 10px;
+  font-size: 14px;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.add-option-button:hover {
+  background-color: #0056b3;
+}
+
+.surveyContent .option:hover {
+  cursor: pointer;
+}
+
+/* 简答题 */
+.text-component {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 700px;
+  /* 限制最大宽度 */
+  margin-bottom: 15px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.text-component h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: #333;
+  font-weight: bold;
+}
+
+.text-answer {
+  width: 100%;
+  height: 100px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: none;
+  background-color: #fff;
+  font-size: 14px;
+  color: #333;
+}
+
+
+/* 评分组件 */
+.rating-component {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 700px;
+  margin-bottom: 15px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rating-component h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: #333;
+  font-weight: bold;
+}
+
+.rating-slider {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.rating-value {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 日期选择组件 */
+.date-component {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 700px;
+  margin-bottom: 15px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.date-component h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: #333;
+  font-weight: bold;
+}
+
+.date-picker {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #333;
+}
+
+/* 提交按钮组件 */
+.submit-button-component {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 100px;
+  max-width: 700px;
+  margin-bottom: 15px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.submit-button {
+  padding: 10px 20px;
+  font-size: 16px;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.submit-button:hover {
+  background-color: #0056b3;
+}
+
+.survey-item {
+  display: block;
+  /* 确保组件为块级元素 */
+  margin-bottom: 10px;
+  width: 100%;
+  max-width: 700px;
+  min-height: 100px;
+  height: auto;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background-color: whitesmoke;
+  position: relative;
+}

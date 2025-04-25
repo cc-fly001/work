@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>问卷详情</title>
+  <link rel="stylesheet" href="../CSS/sharedSurveyDetail.css">
+</head>
+
+<body>
+  <button id="backBtn" class="back-button">← 返回</button>
+  <button id="shareBtn" class="share-button">分享</button>
+  <div class="page-wrapper">
+    <div class="survey-container">
+      <h1 class="survey-title">加载中...</h1>
+      <div class="survey-created"></div>
+      <div class="survey-content"></div>
+    </div>
+
+    <div class="comment-container">
+      <h2>评论区</h2>
+      <div id="commentList" class="comment-list">
+        <!-- 评论列表 -->
+      </div>
+      <textarea id="commentInput" placeholder="写下你的评论..." rows="4"></textarea>
+      <button id="submitCommentBtn">评论</button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('backBtn').addEventListener('click', () => {
+      window.location.href = 'sharingPlatform.html';
+    });
+
+
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+
+    async function loadSurveyDetail() {
+      const surveyId = getQueryParam('surveyId');
+      if (!surveyId) {
+        alert('未指定问卷ID');
+        return;
+      }
+
+      const token = localStorage.getItem('token') || '';
+
+      try {
+        const response = await fetch(`http://127.0.0.1:3007/survey/getShareContent?id=${surveyId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+        });
+
+        const result = await response.json();
+
+        if (result.status !== 0) {
+          alert('获取问卷详情失败：' + result.message);
+          window.location.href = 'sharingPlatform.html'
+          return;
+        }
+
+        const data = result.data;
+
+        // 调用增加浏览次数接口
+        try {
+          const viewRes = await fetch('http://127.0.0.1:3007/survey/addViewCount', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token,
+            },
+            body: JSON.stringify({ id: surveyId }),
+          });
+          const viewResult = await viewRes.json();
+          if (viewResult.status !== 0) {
+            console.warn('增加浏览次数失败:', viewResult.message);
+          }
+        } catch (e) {
+          console.error('调用增加浏览次数接口失败:', e);
+        }
+
+        // 设置标题和创建时间
+        document.querySelector('.survey-title').textContent = data.title || '无标题';
+        document.querySelector('.survey-created').textContent = '创建时间：' + new Date(data.created_at).toLocaleString();
+
+        // 解析内容
+        let contentArray = [];
+        if (typeof data.content === 'string') {
+          try {
+            contentArray = JSON.parse(data.content);
+          } catch (e) {
+            console.error('解析content失败:', e);
+            contentArray = [];
+          }
+        } else if (Array.isArray(data.content)) {
+          contentArray = data.content;
+        }
+
+        const container = document.querySelector('.survey-content');
+        container.innerHTML = '';
+
+        contentArray.forEach(item => {
+          const range = document.createRange();
+          const fragment = range.createContextualFragment(item.html.trim());
+
+          fragment.childNodes.forEach(node => {
+            if (node.nodeType === 1) {
+              const styles = item.styles || {};
+              node.style.width = styles.width || '700px';
+              node.style.height = styles.height || '500px';
+              node.style.borderRadius = styles.borderRadius || '5px';
+            }
+          });
+
+          fragment.querySelectorAll('input, textarea, select, button').forEach(el => {
+            el.disabled = true;
+            el.readOnly = true;
+            el.style.backgroundColor = '#f0f0f0';
+            el.style.color = '#555';
+            if (el.type === 'range') {
+              el.style.pointerEvents = 'none';
+            }
+          });
+
+          fragment.querySelectorAll('[contenteditable="true"]').forEach(el => {
+            el.contentEditable = "false";
+          });
+
+          container.appendChild(fragment);
+        });
+
+      } catch (error) {
+        console.error('请求失败:', error);
+        alert('加载问卷详情失败，请稍后重试。');
+      }
+    }
+
+
+    //分享按钮点击事件
+    document.getElementById('shareBtn').addEventListener('click', async () => {
+      const surveyId = getQueryParam('surveyId');
+      if (!surveyId) {
+        alert('问卷ID缺失，无法分享');
+        return;
+      }
+
+      const shareUrl = window.location.origin + window.location.pathname + '?surveyId=' + surveyId;
+
+      try {
+        // 调用增加分享次数接口
+        const token = localStorage.getItem('token') || '';
+        const res = await fetch('http://127.0.0.1:3007/survey/addShareCount', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify({ id: surveyId }),
+        });
+        const result = await res.json();
+        if (result.status !== 0) {
+          console.warn('增加分享次数失败:', result.message);
+        }
+      } catch (e) {
+        console.error('调用分享接口失败:', e);
+      }
+
+      if (navigator.clipboard) {
+        try {
+          addUserLog('共享大厅详情页分享', surveyId)
+          await navigator.clipboard.writeText(shareUrl);
+          alert('分享链接已复制到剪贴板！');
+        } catch (err) {
+          alert('复制失败，请手动复制链接：\n' + shareUrl);
+        }
+      } else {
+        prompt('请复制以下链接进行分享：', shareUrl);
+      }
+    });
+
+
+    // 获取评论列表函数
+    async function loadComments() {
+      const surveyId = getQueryParam('surveyId');
+      if (!surveyId) return;
+
+      const token = localStorage.getItem('token') || '';
+      try {
+        const res = await fetch(`http://127.0.0.1:3007/comment/getSurveyComments?surveyId=${surveyId}`, {
+          headers: {
+            'Authorization': token,
+          },
+        });
+        const result = await res.json();
+        if (result.status !== 0) {
+          console.warn('获取评论失败:', result.message);
+          return;
+        }
+
+        const commentList = document.getElementById('commentList');
+        commentList.innerHTML = '';
+
+        const currentUserId = getCurrentUserIdFromToken(token);
+
+        result.data.forEach(comment => {
+          const div = document.createElement('div');
+          div.className = 'comment-item';
+          div.style.position = 'relative';
+          div.innerHTML = `
+        <strong>${comment.username || '匿名用户'}</strong> <span style="color:#999; font-size:0.8rem;">${new Date(comment.created_at).toLocaleString()}</span>
+        <p>${comment.content}</p>
+        `;
+
+          if (currentUserId && comment.user_id == currentUserId) {
+            const deleteBtn = document.createElement('button');
+            deleteBtn.classList.add('delete-btn')
+            deleteBtn.textContent = '删除';
+
+            deleteBtn.addEventListener('click', async () => {
+              if (!confirm('确定删除该评论吗？')) return;
+
+              try {
+                const delRes = await fetch('http://127.0.0.1:3007/comment/commentDeleting', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token,
+                  },
+                  body: JSON.stringify({ comment_id: comment.id }),
+                });
+                const delResult = await delRes.json();
+                if (delResult.status !== 0) {
+                  alert('删除失败：' + delResult.message);
+                  return;
+                }
+                alert('删除成功');
+                loadComments();
+              } catch (error) {
+                console.error('删除评论失败:', error);
+                alert('删除失败，请稍后重试');
+              }
+            });
+
+            div.appendChild(deleteBtn);
+          }
+
+          commentList.appendChild(div);
+        });
+      } catch (error) {
+        console.error('加载评论失败:', error);
+      }
+    }
+
+    // 评论按钮点击事件
+    document.getElementById('submitCommentBtn').addEventListener('click', async () => {
+      const surveyId = getQueryParam('surveyId');
+      if (!surveyId) {
+        alert('问卷ID缺失，无法提交评论');
+        return;
+      }
+
+      const commentInput = document.getElementById('commentInput');
+      const content = commentInput.value.trim();
+
+      if (!content) {
+        alert('评论内容不能为空');
+        return;
+      }
+
+      const escapedContent = escapeHtml(content);
+
+      const token = localStorage.getItem('token') || '';
+      try {
+        const res = await fetch('http://127.0.0.1:3007/comment/commentSaving', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify({
+            survey_id: surveyId,
+            content: escapedContent,
+          }),
+        });
+
+        const result = await res.json();
+
+        if (result.status !== 0) {
+          alert('评论提交失败：' + result.message);
+          return;
+        }
+
+        addUserLog('发表评论', surveyId)
+        alert('评论提交成功！');
+        commentInput.value = '';
+        loadComments(); // 重新加载评论列表
+
+        await markCommentsRead(surveyId);
+
+      } catch (error) {
+        console.error('提交评论失败:', error);
+        alert('提交评论失败，请稍后重试。');
+      }
+    });
+
+    // 页面加载时加载评论
+    window.onload = async () => {
+      const surveyId = getQueryParam('surveyId');
+      if (!surveyId) {
+        alert('未指定问卷ID');
+        return;
+      }
+      loadSurveyDetail();
+      loadComments();
+
+      // 标记评论已读
+      markCommentsRead(surveyId);
+    };
+
+
+    function base64UrlToBase64(base64UrlString) {
+      let base64 = base64UrlString.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) {
+        base64 += '=';
+      }
+      return base64;
+    }
+
+    function getCurrentUserIdFromToken(token) {
+      if (!token) return null;
+      if (token.startsWith('Bearer ')) {
+        token = token.slice(7);
+      }
+      try {
+        const base64Payload = token.split('.')[1];
+        const base64 = base64UrlToBase64(base64Payload);
+        const payload = JSON.parse(atob(base64));
+        return payload.id || null;
+      } catch (e) {
+        console.error('解析token失败', e);
+        return null;
+      }
+    }
+
+    //更新评论已读状态
+    async function markCommentsRead(surveyId) {
+      if (!surveyId) return;
+
+      const token = localStorage.getItem('token') || '';
+      if (!token) return;
+
+      try {
+        const res = await fetch('http://127.0.0.1:3007/comment/markCommentsRead', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify({ survey_id: surveyId }),
+        });
+
+        const result = await res.json();
+        if (result.status !== 0) {
+          console.warn('标记评论已读失败:', result.message);
+        } else {
+          console.log('标记评论已读成功');
+        }
+      } catch (error) {
+        console.error('调用标记评论已读接口失败:', error);
+      }
+    }
+
+
+    //转化html标签
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      };
+      return text.replace(/[&<>"']/g, function (m) { return map[m]; });
+    }
+
+    //封装addUserLog函数用以调用增加日志接口
+    async function addUserLog(action, surveyId = null) {
+      const token = localStorage.getItem('token');
+      const user_id = localStorage.getItem('user_id');
+
+      if (!token || !user_id) return;
+
+      const logData = {
+        user_id,
+        action,
+        survey_id: surveyId,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const response = await fetch('http://127.0.0.1:3007/log/addLog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token,
+          },
+          body: JSON.stringify(logData),
+        });
+
+        const result = await response.json();
+        if (result.status !== 0) {
+          console.warn('添加日志失败:', result.message);
+        }
+      } catch (error) {
+        console.error('调用添加日志接口失败:', error);
+      }
+    }
+  </script>
+</body>
+
+</html>
